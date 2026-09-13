@@ -3,6 +3,8 @@ export type AgentConfig = {
   signaling_url: string | null;
   pwa_url: string | null;
   agent_id: string;
+  /** null = use the built-in default. Clamped by the Rust side on save. */
+  pairing_code_len: number | null;
   trusted_clients: Record<string, TrustedClient>;
 };
 

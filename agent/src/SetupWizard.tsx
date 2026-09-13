@@ -5,6 +5,11 @@ import type { AgentConfig } from "./types";
 
 type Props = { current: AgentConfig; onSaved: (cfg: AgentConfig) => void };
 
+/** Keep in sync with `agent/src-tauri/src/pairing.rs`. */
+const MIN_CODE_LEN = 8;
+const MAX_CODE_LEN = 128;
+const DEFAULT_CODE_LEN = 16;
+
 /**
  * First-run setup wizard.
  *
@@ -15,6 +20,7 @@ type Props = { current: AgentConfig; onSaved: (cfg: AgentConfig) => void };
 export function SetupWizard({ current, onSaved }: Props) {
   const [signalingUrl, setSignalingUrl] = useState(current.signaling_url ?? "");
   const [pwaUrl, setPwaUrl] = useState(current.pwa_url ?? "");
+  const [codeLen, setCodeLen] = useState(current.pairing_code_len ?? DEFAULT_CODE_LEN);
   const [startOnBoot, setStartOnBoot] = useState(false);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
@@ -52,6 +58,7 @@ export function SetupWizard({ current, onSaved }: Props) {
           ...current,
           signaling_url: cleaned,
           pwa_url: pwaUrl.trim() ? pwaUrl.trim() : null,
+          pairing_code_len: codeLen,
         },
       });
 
@@ -111,6 +118,23 @@ export function SetupWizard({ current, onSaved }: Props) {
         />
         <span style={styles.hint}>
           Your Vercel deployment. Shown as a hint on the pairing screen.
+        </span>
+      </label>
+
+      <label style={styles.label}>
+        <span>Pairing code length</span>
+        <input
+          type="number"
+          min={MIN_CODE_LEN}
+          max={MAX_CODE_LEN}
+          value={codeLen}
+          onChange={(e) => setCodeLen(Number(e.target.value))}
+          style={styles.input}
+        />
+        <span style={styles.hint}>
+          Characters per generated code ({MIN_CODE_LEN}–{MAX_CODE_LEN}). Longer
+          codes are harder to guess; you only type one per device. A new code is
+          generated for every pairing.
         </span>
       </label>
 

@@ -3,7 +3,7 @@
  *
  * Two flows:
  *
- *   1. Pairing (code URL): user types a 6-char code, PWA opens /ws/{code}.
+ *   1. Pairing (code URL): user types the host's pairing code, PWA opens /ws/{code}.
  *      Host is on the other end, no auth required, WebRTC starts immediately
  *      on "ready". After it connects, PWA can offer "save this host?" and
  *      exchange trusted-device credentials on the "control" DataChannel.

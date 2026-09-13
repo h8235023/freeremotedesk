@@ -31,10 +31,20 @@ Ping/pong every 25 s to survive load-balancer idle timeouts.
 
 ## Pairing code format
 
-- 6 characters, alphabet `23456789abcdefghjkmnpqrstuvwxyz` (32 chars, excludes 0/1/i/l/o for legibility)
-- ~30 bits of entropy — enough to resist online brute force (server rate-limits to 5 attempts/min per IP)
-- Valid for 60 seconds after generation
-- One-shot: consumed the moment a client claims it
+- Minted locally by the host agent (`agent/src-tauri/src/pairing.rs`). The
+  signaling service never generates or validates a code — it only uses it as a
+  Durable Object room key.
+- Length is user-configurable: 8–128 characters, default 16. The floor keeps a
+  code out of hand-brute-force range; the ceiling matches the Worker's room-key
+  check (`roomKey.length > 128` → 400).
+- Alphabet `23456789abcdefghjkmnpqrstuvwxyz` (31 chars, excludes 0/1/i/l/o for
+  legibility), so 16 characters is ~79 bits.
+- A fresh code is minted per pairing attempt and dropped when the pair
+  connection closes.
+- The code *is* the room: whoever reaches `/ws/{code}` second is joined to the
+  session. There is currently **no attempt rate-limiting and no expiry** — the
+  entropy of the code is the only thing protecting the room, so prefer longer
+  codes.
 
 ## WebRTC channel layout
 

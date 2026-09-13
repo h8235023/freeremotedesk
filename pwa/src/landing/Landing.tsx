@@ -103,7 +103,7 @@ export function Landing() {
       <section style={styles.section}>
         <h2 style={styles.h2}>Trusted-device reconnect</h2>
         <p style={styles.paragraph}>
-          Pair your phone or laptop once with a 6-character code. From then on
+          Pair your phone or laptop once with a one-off code. From then on
           it shows up in your paired-hosts list — one tap to reconnect, no code
           needed. Credentials never leave the two devices; the signaling server
           can't impersonate you.

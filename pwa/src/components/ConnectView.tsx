@@ -9,13 +9,17 @@ type Props = {
   onOpenSettings: () => void;
 };
 
+/** Longest room key the signaling Worker accepts (`signaling/src/index.ts`).
+ *  How long a code actually is, is the host's choice — this side assumes none. */
+const MAX_CODE_LEN = 128;
+
 export function ConnectView({ signalingUrl, onConnected, onOpenSettings }: Props) {
   const [code, setCode] = useState("");
   const [status, setStatus] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [savedHosts, setSavedHosts] = useState<SavedHost[]>(() => listSavedHosts());
 
-  const canSubmit = code.trim().length === 6 && !busy;
+  const canSubmit = code.trim().length > 0 && !busy;
 
   function refresh() {
     setSavedHosts(listSavedHosts());
@@ -78,7 +82,7 @@ export function ConnectView({ signalingUrl, onConnected, onOpenSettings }: Props
         <p className="muted" style={{ marginTop: "0.25rem" }}>
           {savedHosts.length > 0
             ? "Tap a saved host to reconnect, or add a new one."
-            : "Enter the 6-character pairing code from your host."}
+            : "Enter the pairing code shown on your host."}
         </p>
       </div>
 
@@ -87,10 +91,12 @@ export function ConnectView({ signalingUrl, onConnected, onOpenSettings }: Props
       <form onSubmit={submitCode} style={styles.form}>
         {savedHosts.length > 0 && <div style={styles.sectionLabel}>Pair a new host</div>}
         <input
-          maxLength={6}
-          placeholder="x7k2q9"
+          maxLength={MAX_CODE_LEN}
+          placeholder="pairing code"
           value={code}
-          onChange={(e) => setCode(e.target.value.replace(/[^a-z0-9]/gi, "").slice(0, 6))}
+          onChange={(e) =>
+            setCode(e.target.value.replace(/[^a-z0-9]/gi, "").slice(0, MAX_CODE_LEN))
+          }
           inputMode="text"
           autoCapitalize="off"
           autoCorrect="off"

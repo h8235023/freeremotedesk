@@ -310,7 +310,13 @@ function App() {
     const currentConfig =
       "config" in state && state.config
         ? state.config
-        : { signaling_url: null, pwa_url: null, agent_id: "", trusted_clients: {} };
+        : {
+            signaling_url: null,
+            pwa_url: null,
+            agent_id: "",
+            pairing_code_len: null,
+            trusted_clients: {},
+          };
     persistentPeerRef.current?.close();
     pairPeerRef.current?.close();
     setState({ kind: "setup", current: currentConfig });

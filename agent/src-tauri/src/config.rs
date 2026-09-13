@@ -51,6 +51,12 @@ pub struct AgentConfig {
     /// the persistent host WebSocket (`/ws/host-{agent_id}`).
     pub agent_id: String,
 
+    /// How many characters generated pairing codes have. `None` falls back to
+    /// [`crate::pairing::DEFAULT_CODE_LEN`]. Clamped into the supported range
+    /// when generated, so a hand-edited config can't yield a weak code.
+    #[serde(default)]
+    pub pairing_code_len: Option<usize>,
+
     /// Trusted clients keyed by their opaque client-id. Only the hash of the
     /// shared secret is stored — never the raw value.
     #[serde(default)]
@@ -71,6 +77,14 @@ fn load_from_disk(path: &PathBuf) -> AgentConfig {
         .ok()
         .and_then(|s| serde_json::from_str::<AgentConfig>(&s).ok())
         .unwrap_or_default()
+}
+
+/// The configured pairing-code length, falling back to the built-in default.
+pub fn pairing_code_len(app: &AppHandle) -> Result<usize, String> {
+    let path = config_path(app)?;
+    Ok(load_from_disk(&path)
+        .pairing_code_len
+        .unwrap_or(crate::pairing::DEFAULT_CODE_LEN))
 }
 
 fn ensure_agent_id(cfg: &mut AgentConfig) {
@@ -134,6 +148,11 @@ pub fn set_config(app: AppHandle, config: AgentConfig) -> Result<AgentConfig, St
         if url.is_empty() {
             cfg.pwa_url = None;
         }
+    }
+    // Clamp rather than reject: a stale UI or a hand-edited config shouldn't be
+    // able to talk us into generating a trivially guessable code.
+    if let Some(len) = cfg.pairing_code_len {
+        cfg.pairing_code_len = Some(crate::pairing::clamp_code_len(len));
     }
     save(&path, &cfg)?;
     Ok(cfg)
