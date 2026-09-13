@@ -86,7 +86,7 @@ The agent runs on the machine you want to remotely reach.
 5. First-run wizard asks for:
    - **Signaling URL** — paste the URL from step 1
    - **PWA URL** — paste the URL from step 2 (optional; shown as a hint on the pairing screen)
-   - **Pairing code length** — characters per generated code, 8–128 (default 16). Longer is harder to guess.
+   - **Pairing code length** — characters per generated code, 6–128 (default 16). Longer is harder to guess.
 6. Click **Save and continue**.
 
 The agent is now ready. Click **Start session** whenever you want to expose your screen. It pops the OS screen-picker; choose which screen or window to share. You get a one-off pairing code, and a fresh one is minted for every pairing.

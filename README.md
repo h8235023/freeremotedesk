@@ -2,6 +2,13 @@
 
 Reach your home dev machine from any browser. Zero servers you run. Zero monthly cost. You own the whole stack.
 
+> **⚠️ This fork has been modified with AI assistance (Claude Code).**
+> The pairing code length is no longer hardcoded to 6 — it is user-configurable
+> (6–128 characters, default 16), set in the agent's setup/settings screen, and
+> the PWA no longer assumes any particular length. A fresh code is still minted
+> per pairing. `docs/PROTOCOL.md` also records several properties that document
+> used to claim but that do **not** appear anywhere in the code.
+
 ## Setup — pick your path
 
 ### 🤖 Path A: Hand this repo to your AI agent (recommended for vibe coders)

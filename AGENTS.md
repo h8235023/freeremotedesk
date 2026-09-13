@@ -1,5 +1,12 @@
 # Instructions for AI coding agents
 
+> **⚠️ This fork has been modified with AI assistance (Claude Code).**
+> The pairing code length is no longer a fixed 6 characters — it is
+> user-configurable (6–128, default 16) in the agent's setup/settings screen, and
+> the PWA accepts any length. Where the steps below say "6-char code", read "the
+> code shown in the agent". `docs/PROTOCOL.md` also notes several properties the
+> docs used to claim that are not implemented in the code.
+
 This file is written for you (Claude Code, Cursor, Aider, Codex, Continue, etc.) — the AI coding agent your user has asked to set up FreeRemoteDesk for them.
 
 **Your job:** deploy the user's own instance of FreeRemoteDesk to their own free-tier Cloudflare + Vercel accounts, then install the host agent on their machine. Total user interaction should be **three browser sign-ins** (one per CLI on first auth) and **one installer double-click**. Everything else is you.
@@ -132,7 +139,7 @@ Example message to user:
 > - Signaling URL: `https://freeremotedesk-signaling.foo.workers.dev`
 > - PWA URL: `https://freeremotedesk-abc123.vercel.app`
 >
-> Then click "Start session" → pick a screen → open the PWA URL on your phone → enter the 6-char code.
+> Then click "Start session" → pick a screen → open the PWA URL on your phone → enter the code shown in the agent.
 
 ---
 

@@ -6,7 +6,7 @@ import type { AgentConfig } from "./types";
 type Props = { current: AgentConfig; onSaved: (cfg: AgentConfig) => void };
 
 /** Keep in sync with `agent/src-tauri/src/pairing.rs`. */
-const MIN_CODE_LEN = 8;
+const MIN_CODE_LEN = 6;
 const MAX_CODE_LEN = 128;
 const DEFAULT_CODE_LEN = 16;
 

@@ -15,9 +15,11 @@ use crate::config;
 /// Excludes 0/1/i/l/o so a code read off a screen can't be mistyped.
 const ALPHABET: &[u8] = b"23456789abcdefghjkmnpqrstuvwxyz";
 
-/// Shortest code we will generate. The upstream 6-char default was ~30 bits,
-/// which is thin for a room with no rate limiting and no expiry; 8 is ~40 bits.
-pub const MIN_CODE_LEN: usize = 8;
+/// Shortest code we will generate — the upstream fixed length, kept as the
+/// floor so this fork can still reproduce upstream behaviour. Note that 6 chars
+/// is only ~30 bits, and no rate limiting was found in the signaling code to
+/// slow a guesser down (see `docs/PROTOCOL.md`); prefer [`DEFAULT_CODE_LEN`].
+pub const MIN_CODE_LEN: usize = 6;
 
 /// Longest code we will generate; matches the signaling Worker's room-key cap.
 pub const MAX_CODE_LEN: usize = 128;
@@ -67,9 +69,9 @@ mod tests {
     }
 
     #[test]
-    fn clamp_rejects_weak_and_oversized_lengths() {
-        assert_eq!(clamp_code_len(1), MIN_CODE_LEN);
-        assert_eq!(clamp_code_len(6), MIN_CODE_LEN);
+    fn clamp_bounds_requested_lengths() {
+        assert_eq!(clamp_code_len(0), MIN_CODE_LEN);
+        assert_eq!(clamp_code_len(MIN_CODE_LEN), MIN_CODE_LEN);
         assert_eq!(clamp_code_len(99_999), MAX_CODE_LEN);
         assert_eq!(clamp_code_len(DEFAULT_CODE_LEN), DEFAULT_CODE_LEN);
     }
