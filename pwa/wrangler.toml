@@ -1,0 +1,19 @@
+# Serve the built PWA from Cloudflare Workers static assets.
+#
+# This exists because Vercel is unreachable from some networks where a
+# Cloudflare-hosted custom domain is not (notably mainland China, where
+# *.vercel.app is DNS-poisoned). Deploying to a Worker also means the custom
+# domain is provisioned by the same mechanism as the signaling Worker —
+# Cloudflare creates the DNS record and certificate, so no manual CNAME is
+# needed (Cloudflare Pages requires one, and it is easy to get wrong).
+#
+# Deploy:  cd pwa && pnpm build && npx wrangler deploy
+# The signaling URL is baked in at build time via VITE_SIGNALING_URL.
+
+name = "freeremotedesk-pwa"
+compatibility_date = "2025-01-01"
+
+[assets]
+directory = "./dist"
+# /connect is a client-side route; serve index.html rather than 404.
+not_found_handling = "single-page-application"
