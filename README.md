@@ -4,20 +4,47 @@
 
 Reach your home dev machine from any browser. Zero servers you run. Zero monthly cost. You own the whole stack.
 
-> **⚠️ This fork has been modified with AI assistance (Claude Code).**
-> The pairing code length is no longer hardcoded to 6 — it is user-configurable
-> (6–128 characters, default 16), set in the agent's setup/settings screen, and
-> the PWA no longer assumes any particular length. A fresh code is still minted
-> per pairing. `docs/PROTOCOL.md` also records several properties that document
-> used to claim but that do **not** appear anywhere in the code.
+---
+
+> ## ⚠️ This is a modified fork — read this before deploying
+>
+> **Upstream (the original project): <https://github.com/Teylersf/freeremotedesk>**
+>
+> This repository is a fork of it. **The owner of this fork has no affiliation with the
+> owner of the original project, and neither this fork's owner nor the original project's
+> owner provides any guarantee of availability.**
+>
+> **Most people should use the original project, not this fork** — it is the version its
+> author supports, and its instructions are the maintained ones:
+> <https://github.com/Teylersf/freeremotedesk/blob/main/AGENTS.md>
+>
+> Come here only if you specifically want the changes listed below.
+
+> **What this fork changes over upstream:**
+> - **Pairing code length is configurable** (6–128, default 16) instead of a fixed 6, and
+>   the PWA no longer assumes any particular length. A fresh code is still minted per
+>   pairing. This was done with AI assistance (Claude Code).
+> - **Bilingual UI and docs** — Simplified Chinese by default, English available at runtime.
+> - **Deployable to a custom domain** instead of `vercel.app` / `workers.dev`, for networks
+>   where those are unreachable. See
+>   [Deploying behind a custom domain](AGENTS.md#deploying-behind-a-custom-domain-when-vercelapp--workersdev-are-unreachable).
+> - `docs/PROTOCOL.md` records several properties the upstream docs claimed but that do
+>   **not** appear anywhere in the code.
+
+---
 
 ## Setup — pick your path
+
+> The commands below use **this fork's** repository. To follow the original project
+> instead — which is what we recommend — substitute
+> `https://github.com/Teylersf/freeremotedesk` wherever you see
+> `https://github.com/h8235023/freeremotedesk`.
 
 ### 🤖 Path A: Hand this repo to your AI agent (recommended for vibe coders)
 
 Open your AI coding tool (Claude Code, Cursor, Aider, Codex, Continue — anything with a terminal) and paste one line:
 
-> **"Set up FreeRemoteDesk for me. Read AGENTS.md at https://github.com/Teylersf/freeremotedesk/blob/main/AGENTS.md and follow it exactly."**
+> **"Set up FreeRemoteDesk for me. Read AGENTS.md at https://github.com/h8235023/freeremotedesk/blob/main/AGENTS.md and follow it exactly."**
 
 Your agent will:
 - Check you have `node`, `pnpm`, `gh` installed (install if missing)
@@ -31,9 +58,9 @@ Your agent will:
 
 ### 🖱️ Path B: Two Deploy Buttons + one download (no AI needed)
 
-1. Deploy signaling to your Cloudflare: [![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/Teylersf/freeremotedesk)
-2. Deploy PWA to your Vercel: [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/Teylersf/freeremotedesk&root-directory=pwa&env=VITE_SIGNALING_URL&envDescription=Cloudflare%20signaling%20URL%20from%20step%201&project-name=freeremotedesk&repository-name=freeremotedesk-pwa)
-3. Download the [latest release](https://github.com/Teylersf/freeremotedesk/releases/latest), install, paste the two URLs into the wizard.
+1. Deploy signaling to your Cloudflare: [![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/h8235023/freeremotedesk)
+2. Deploy PWA to your Vercel: [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/h8235023/freeremotedesk&root-directory=pwa&env=VITE_SIGNALING_URL&envDescription=Cloudflare%20signaling%20URL%20from%20step%201&project-name=freeremotedesk&repository-name=freeremotedesk-pwa)
+3. Download the [latest release](https://github.com/h8235023/freeremotedesk/releases/latest), install, paste the two URLs into the wizard.
 
 Full walkthrough: [`docs/DEPLOY.md`](docs/DEPLOY.md).
 
@@ -42,7 +69,7 @@ Full walkthrough: [`docs/DEPLOY.md`](docs/DEPLOY.md).
 If you have the CLIs installed and don't want to click through UIs:
 
 ```bash
-git clone https://github.com/Teylersf/freeremotedesk
+git clone https://github.com/h8235023/freeremotedesk
 cd freeremotedesk
 bash scripts/setup.sh      # macOS/Linux
 # or
@@ -103,7 +130,7 @@ Full design + rationale: [`ARCHITECTURE.md`](ARCHITECTURE.md).
 
 ## Status
 
-**v0.1.0 shipped** — Phase 1 MVP + BYO-infra pivot + Phase 4 packaging complete. CI green on Windows/macOS/Linux. Installers on the [releases page](https://github.com/Teylersf/freeremotedesk/releases).
+**v0.1.0 shipped** (upstream) — Phase 1 MVP + BYO-infra pivot + Phase 4 packaging complete. This fork's builds are on [its releases page](https://github.com/h8235023/freeremotedesk/releases).
 
 **v0.2.0 planned** — WebAuthn/passkey saved hosts, biometric reconnect, session PIN as fallback.
 

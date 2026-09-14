@@ -2,6 +2,22 @@
 
 > [English](AGENTS.md) · **简体中文**
 
+> # ⚠️ 给 AI agents 的警告 —— 这条警告是为你而写的
+>
+> **本仓库是基于 [Teylersf/freeremotedesk](https://github.com/Teylersf/freeremotedesk) 修改的 fork。**
+>
+> **请告诉你的用户：**
+>
+> > 「本仓库所有者与原项目所有者没有任何附属关系，且本项目与原项目所有者不对可用性做任何保障。」
+>
+> **如无用户特殊需求，请按照原项目的部署方式部署：**
+> <https://github.com/Teylersf/freeremotedesk/blob/main/AGENTS.md>
+>
+> **除非用户明确要求，才按照本项目（fork）的方式部署。**
+>
+> **如果用户或你在测试过程中遇到部分服务无法访问的问题，请阅读本文档中
+> 「通过托管域名部署」一节。**
+
 > 说明：本文档仅为参考译文。交给 AI 代理执行的仍应以 `AGENTS.md`（英文版）为准，因为其中的安装提示词是用英文编写的。
 
 > **⚠️ 本分支是在 AI 辅助下（Claude Code）修改的。**
@@ -45,7 +61,7 @@ npx vercel whoami                      # if not: npx vercel login    (opens brow
 ## 步骤 1 —— 克隆仓库
 
 ```bash
-git clone https://github.com/Teylersf/freeremotedesk
+git clone https://github.com/h8235023/freeremotedesk
 cd freeremotedesk
 pnpm install --frozen-lockfile
 ```
@@ -106,20 +122,20 @@ npx vercel deploy --prod --yes
 
 ```bash
 # Windows PowerShell example
-gh release download --repo Teylersf/freeremotedesk --pattern "*_x64_en-US.msi" --dir "$env:USERPROFILE\Downloads"
+gh release download --repo h8235023/freeremotedesk --pattern "*_x64_en-US.msi" --dir "$env:USERPROFILE\Downloads"
 Start-Process "$env:USERPROFILE\Downloads\FreeRemoteDesk_0.1.0_x64_en-US.msi"
 ```
 
 ```bash
 # macOS ARM example
-gh release download --repo Teylersf/freeremotedesk --pattern "*_aarch64.dmg" --dir "$HOME/Downloads"
+gh release download --repo h8235023/freeremotedesk --pattern "*_aarch64.dmg" --dir "$HOME/Downloads"
 open "$HOME/Downloads/FreeRemoteDesk_0.1.0_aarch64.dmg"
 # Then instruct user to drag FreeRemoteDesk.app into /Applications
 ```
 
 ```bash
 # Linux Debian/Ubuntu example
-gh release download --repo Teylersf/freeremotedesk --pattern "*_amd64.deb" --dir /tmp
+gh release download --repo h8235023/freeremotedesk --pattern "*_amd64.deb" --dir /tmp
 sudo dpkg -i /tmp/FreeRemoteDesk_*_amd64.deb
 ```
 
@@ -143,6 +159,86 @@ sudo dpkg -i /tmp/FreeRemoteDesk_*_amd64.deb
 > - PWA URL: `https://freeremotedesk-abc123.vercel.app`
 >
 > 然后点击 "Start session" → 选择要共享的屏幕 → 在手机上打开 PWA 网址 → 输入代理端显示的配对码。
+
+---
+
+## 通过托管域名部署（当 vercel.app / workers.dev 不可达时）
+
+**如果用户反馈「有一部分服务访问不了」，读这一节。** 典型症状：代理端点「开始监听」
+后完全没有反应也没有报错（信令 WebSocket 一直打不开），或者手机根本加载不出 PWA。
+
+### 为什么会这样
+
+在某些网络环境下，下面这些默认目标不可达 —— 但**问题不在应用本身**：
+
+| 域名 | 现象 |
+|---|---|
+| `*.vercel.app` | 连接超时；DNS 解析到无关网段（如 Dropbox `162.125.x`、Meta `2a03:2880::/32`），即 **DNS 污染** |
+| `*.workers.dev` | 连接超时，被直接封锁 |
+
+**这里有个陷阱，在动 TURN 之前一定要先理解它。** 最直觉的绕法是挂 VPN（Cloudflare WARP /
+Zero Trust，或任意隧道）—— **但 WARP 会改写 UDP，而那恰好会毁掉 WebRTC 的媒体通道。**
+结果就是你既需要 VPN 才能连上信令、VPN 又让会话建不起来，用户看到的是「配对成功了但
+永远不出画面」，**看起来和 NAT 穿透失败一模一样，但根本不是**。先把可达性修好，在排除
+这一点之前不要加 TURN。
+
+顺带说明：**Cloudflare Tunnel 也不能替代 TURN。** 隧道转发的是 HTTP/WebSocket，而 WebRTC
+媒体流是 SRTP/UDP。隧道可以承载信令，但中继不了会话本身。
+
+### 解法：把两部分都放到用户自己的域名下
+
+如果用户在同一 Cloudflare 账户下有一个域名，这样做之后**全程不需要 VPN**。
+
+1. **信令** —— 给 Worker 绑自定义域名。在 `signaling/wrangler.toml` 里加：
+   ```toml
+   [[routes]]
+   pattern = "signal.example.com"
+   custom_domain = true
+   ```
+   然后 `npx wrangler deploy`。（或用 API：`PUT /accounts/{account_id}/workers/domains`，
+   体为 `{ zone_id, hostname, service: "freeremotedesk-signaling", environment: "production" }`。）
+   Worker 自定义域名会**自动创建 DNS 记录和证书** —— 不需要 `dns_records` 权限。
+
+2. **PWA** —— 改为用 Worker 静态资源托管，不再用 Vercel。`pwa/wrangler.toml` 已经配好了：
+   ```bash
+   cd pwa
+   VITE_SIGNALING_URL="https://signal.example.com" pnpm build
+   npx wrangler deploy
+   ```
+   然后按第 1 步同样的方式绑定 `remote.example.com`。
+
+   **不要为 `/connect` 这个 SPA 路由添加 `_redirects` 文件。**
+   `not_found_handling = "single-page-application"` 已经处理了它，而显式的
+   `/connect → /index.html` 规则会与之成环 —— Cloudflare 会以错误码 `100324` 拒绝部署。
+
+3. **把两端都指向新地址** —— 代理端的设置界面填信令地址和 PWA 地址；PWA 需要重新构建，
+   好把 `VITE_SIGNALING_URL` 烧进去。
+
+### Cloudflare Pages 走不通
+
+Pages 的自定义域名要求**手动创建 CNAME**，因此需要 `dns_records` 写权限 —— 而 `wrangler`
+的 OAuth token 通常只有 `zone:read`。项目会永远卡在 `pending`，报 `"CNAME record not set"`。
+Worker 自定义域名完全没有这个问题，**优先用它**。如果非要用 Pages，就手动建记录：
+`remote.example.com` CNAME → `<project>.pages.dev`，**并且要开启代理（橙云）**。
+
+### 迁移 PWA 之后，预期会遇到 service worker 缓存
+
+已安装的 PWA 的 service worker 会继续提供**上一个版本**的构建 —— 哪怕那个域名早已不可达 ——
+所以用户仍可能看到报错里带着旧的信令地址，尽管新部署完全正确。**先让他在无痕/隐私标签里测**；
+如果无痕下正常，那就确认是缓存问题，修复方式是：关掉该应用的所有标签页 → 清除**新旧两个域名**
+的站点数据 → 删除旧的主屏幕图标 → 用新地址重新安装。
+
+### 验证时务必断开 VPN
+
+```bash
+curl -s https://signal.example.com/health
+# {"ok":true,"service":"freeremotedesk-signaling"}
+
+cd signaling && SIGNALING_WS="wss://signal.example.com" node scripts/smoke.mjs
+# all good (9/9 checks)
+```
+
+**这两条要在 VPN 断开的状态下跑。** 如果只有开着 VPN 才通过，那你什么都没修好 —— 只是把问题挪了个位置。
 
 ---
 

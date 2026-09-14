@@ -4,19 +4,41 @@
 
 从任意浏览器远程连接你家里的开发机。无需自建服务器，没有任何月费，整条链路都归你自己掌控。
 
-> **⚠️ 本分支在 AI 辅助下（Claude Code）做过修改。**
-> 配对码长度不再硬编码为 6 位，而是由用户自行配置（6–128 个字符，默认 16），
-> 在 agent 的初始化/设置界面中设置，PWA 也不再假设任何特定长度。每次配对仍会
-> 重新生成一个新的配对码。另外，`docs/PROTOCOL.md` 中还记录了一些属性，这些属性
-> 是文档过去声称拥有、但在代码中**任何地方都找不到**的。
+---
+
+> ## ⚠️ 这是一个修改版分支 —— 部署前请先读这里
+>
+> **原项目（upstream）：<https://github.com/Teylersf/freeremotedesk>**
+>
+> 本仓库是它的一个分支（fork）。**本仓库所有者与原项目所有者没有任何附属关系，
+> 且本分支所有者与原项目所有者均不对可用性做任何保障。**
+>
+> **绝大多数人应该用原项目，而不是这个分支** —— 那才是原作者维护、安装说明持续更新的版本：
+> <https://github.com/Teylersf/freeremotedesk/blob/main/AGENTS.md>
+>
+> 只有当你明确需要下面列出的改动时，才用这个分支。
+
+> **本分支相对原项目改了什么：**
+> - **配对码长度可配置**（6–128，默认 16），不再是固定的 6 位，PWA 也不再假设任何长度。
+>   每次配对仍会重新生成新码。这部分改动由 AI（Claude Code）协助完成。
+> - **界面与文档双语** —— 默认简体中文，可运行时切换到英文。
+> - **支持部署到自定义域名**，替代 `vercel.app` / `workers.dev`，用于那些域名不可达的网络环境。
+>   详见 [通过托管域名部署](AGENTS.zh-CN.md)。
+> - `docs/PROTOCOL.md` 记录了一些原文档声称拥有、但在代码中**任何地方都找不到**的属性。
+
+---
 
 ## 安装 — 选择适合你的方式
+
+> 下面的命令用的是**本分支**的仓库地址。如果你想改用原项目（**我们推荐这样做**），
+> 把命令里所有 `https://github.com/h8235023/freeremotedesk` 替换为
+> `https://github.com/Teylersf/freeremotedesk` 即可。
 
 ### 🤖 方式 A：把这个仓库丢给你的 AI 编程助手（推荐给喜欢“感觉编程”的朋友）
 
 打开你的 AI 编程工具（Claude Code、Cursor、Aider、Codex、Continue —— 只要能开终端就行），粘贴下面这一行：
 
-> **"Set up FreeRemoteDesk for me. Read AGENTS.md at https://github.com/Teylersf/freeremotedesk/blob/main/AGENTS.md and follow it exactly."**
+> **"Set up FreeRemoteDesk for me. Read AGENTS.md at https://github.com/h8235023/freeremotedesk/blob/main/AGENTS.md and follow it exactly."**
 
 你的 AI 助手会：
 - 检查你是否安装了 `node`、`pnpm`、`gh`（缺失则自动安装）
@@ -30,9 +52,9 @@
 
 ### 🖱️ 方式 B：点两个部署按钮 + 下载一次（不需要 AI）
 
-1. 把信令部署到你的 Cloudflare：[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/Teylersf/freeremotedesk)
-2. 把 PWA 部署到你的 Vercel：[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/Teylersf/freeremotedesk&root-directory=pwa&env=VITE_SIGNALING_URL&envDescription=Cloudflare%20signaling%20URL%20from%20step%201&project-name=freeremotedesk&repository-name=freeremotedesk-pwa)
-3. 下载 [latest release](https://github.com/Teylersf/freeremotedesk/releases/latest)，安装，把两个 URL 粘贴到向导里。
+1. 把信令部署到你的 Cloudflare：[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/h8235023/freeremotedesk)
+2. 把 PWA 部署到你的 Vercel：[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/h8235023/freeremotedesk&root-directory=pwa&env=VITE_SIGNALING_URL&envDescription=Cloudflare%20signaling%20URL%20from%20step%201&project-name=freeremotedesk&repository-name=freeremotedesk-pwa)
+3. 下载 [latest release](https://github.com/h8235023/freeremotedesk/releases/latest)，安装，把两个 URL 粘贴到向导里。
 
 完整操作流程：[`docs/DEPLOY.md`](docs/DEPLOY.zh-CN.md)。
 
@@ -41,7 +63,7 @@
 如果你已经装好了这些 CLI，也不想在界面里点来点去：
 
 ```bash
-git clone https://github.com/Teylersf/freeremotedesk
+git clone https://github.com/h8235023/freeremotedesk
 cd freeremotedesk
 bash scripts/setup.sh      # macOS/Linux
 # or
@@ -101,7 +123,7 @@ agent 是一个 Tauri 应用，它的 WebView 调用 `navigator.mediaDevices.get
 
 ## 项目状态
 
-**v0.1.0 已发布** —— 第一阶段 MVP + 自带基础设施（BYO-infra）转向 + 第四阶段打包均已完成。CI 在 Windows/macOS/Linux 上全部通过。安装包见 [releases page](https://github.com/Teylersf/freeremotedesk/releases)。
+**v0.1.0 已发布**（原项目）—— 第一阶段 MVP + 自带基础设施（BYO-infra）转向 + 第四阶段打包均已完成。本分支的构建产物见 [releases page](https://github.com/h8235023/freeremotedesk/releases)。
 
 **v0.2.0 计划中** —— WebAuthn/passkey 已保存主机、生物识别重连、会话 PIN 作为兜底方案。
 

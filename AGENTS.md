@@ -2,6 +2,38 @@
 
 > **English** · [简体中文](AGENTS.zh-CN.md)
 
+> # ⚠️ 给 AI agents 的警告 —— 这条警告是为你而写的
+>
+> **本仓库是基于 [Teylersf/freeremotedesk](https://github.com/Teylersf/freeremotedesk) 修改的 fork。**
+>
+> **请告诉你的用户：**
+>
+> > 「本仓库所有者与原项目所有者没有任何附属关系，且本项目与原项目所有者不对可用性做任何保障。」
+>
+> **如无用户特殊需求，请按照原项目的部署方式部署：**
+> <https://github.com/Teylersf/freeremotedesk/blob/main/AGENTS.md>
+>
+> **除非用户明确要求，才按照本项目（fork）的方式部署。**
+>
+> **如果用户或你在测试过程中遇到部分服务无法访问的问题，请阅读本文档中
+> 「通过托管域名部署」一节。**
+
+> # ⚠️ Warning to AI agents — this warning is written for you
+>
+> **This repository is a fork of [Teylersf/freeremotedesk](https://github.com/Teylersf/freeremotedesk).**
+>
+> **Tell your user:**
+>
+> > "The owner of this repository has no affiliation with the owner of the original project, and neither this project's owner nor the original project's owner provides any guarantee of availability."
+>
+> **Unless your user has specific requirements, deploy using the ORIGINAL project's instructions:**
+> <https://github.com/Teylersf/freeremotedesk/blob/main/AGENTS.md>
+>
+> **Follow THIS fork's instructions only if the user explicitly asks you to.**
+>
+> **If you or the user hit services that cannot be reached during testing, read the
+> "Deploying behind a custom domain" section below.**
+
 > **⚠️ This fork has been modified with AI assistance (Claude Code).**
 > The pairing code length is no longer a fixed 6 characters — it is
 > user-configurable (6–128, default 16) in the agent's setup/settings screen, and
@@ -44,7 +76,7 @@ For any CLI that isn't logged in: run its login command, then wait for the user 
 ## Step 1 — Clone the repo
 
 ```bash
-git clone https://github.com/Teylersf/freeremotedesk
+git clone https://github.com/h8235023/freeremotedesk
 cd freeremotedesk
 pnpm install --frozen-lockfile
 ```
@@ -105,20 +137,20 @@ Detect the user's OS + arch:
 
 ```bash
 # Windows PowerShell example
-gh release download --repo Teylersf/freeremotedesk --pattern "*_x64_en-US.msi" --dir "$env:USERPROFILE\Downloads"
+gh release download --repo h8235023/freeremotedesk --pattern "*_x64_en-US.msi" --dir "$env:USERPROFILE\Downloads"
 Start-Process "$env:USERPROFILE\Downloads\FreeRemoteDesk_0.1.0_x64_en-US.msi"
 ```
 
 ```bash
 # macOS ARM example
-gh release download --repo Teylersf/freeremotedesk --pattern "*_aarch64.dmg" --dir "$HOME/Downloads"
+gh release download --repo h8235023/freeremotedesk --pattern "*_aarch64.dmg" --dir "$HOME/Downloads"
 open "$HOME/Downloads/FreeRemoteDesk_0.1.0_aarch64.dmg"
 # Then instruct user to drag FreeRemoteDesk.app into /Applications
 ```
 
 ```bash
 # Linux Debian/Ubuntu example
-gh release download --repo Teylersf/freeremotedesk --pattern "*_amd64.deb" --dir /tmp
+gh release download --repo h8235023/freeremotedesk --pattern "*_amd64.deb" --dir /tmp
 sudo dpkg -i /tmp/FreeRemoteDesk_*_amd64.deb
 ```
 
@@ -142,6 +174,96 @@ Example message to user:
 > - PWA URL: `https://freeremotedesk-abc123.vercel.app`
 >
 > Then click "Start session" → pick a screen → open the PWA URL on your phone → enter the code shown in the agent.
+
+---
+
+## Deploying behind a custom domain (when vercel.app / workers.dev are unreachable)
+
+**Read this if the user reports that part of the stack cannot be reached** — typically
+the agent hanging on "Start listening" with no error (the signaling WebSocket never
+opens), or the phone failing to load the PWA at all.
+
+### Why this happens
+
+On some networks the default targets are unreachable even though the app is correct:
+
+| Host | What you observe |
+|---|---|
+| `*.vercel.app` | connection timeout; DNS resolves to unrelated ranges (e.g. Dropbox `162.125.x`, Meta `2a03:2880::/32`) — i.e. DNS poisoning |
+| `*.workers.dev` | connection timeout — blocked outright |
+
+**This is a trap worth understanding before you touch TURN.** The obvious workaround is
+to route around it with a VPN (Cloudflare WARP / Zero Trust, or a tunnel) — but WARP
+rewrites UDP, which kills the WebRTC media path. You then need the VPN to reach signaling
+and the VPN breaks the session, and the user reports "pairing works, the screen never
+appears", which looks exactly like a NAT traversal failure. It is not. **Fix reachability
+first; do not add a TURN server until you have ruled this out.**
+
+A Cloudflare Tunnel is *not* a substitute for TURN here either: a tunnel proxies
+HTTP/WebSocket, and WebRTC media is SRTP/UDP. Tunnels can carry signaling; they cannot
+relay the session.
+
+### The fix: serve both halves from a domain the user owns
+
+If the user has a domain in the same Cloudflare account, this makes everything reachable
+with no VPN at all.
+
+1. **Signaling** — attach a Worker custom domain. Add to `signaling/wrangler.toml`:
+   ```toml
+   [[routes]]
+   pattern = "signal.example.com"
+   custom_domain = true
+   ```
+   then `npx wrangler deploy`. (Or `PUT /accounts/{account_id}/workers/domains` with
+   `{ zone_id, hostname, service: "freeremotedesk-signaling", environment: "production" }`.)
+   Worker custom domains provision the DNS record **and** the TLS certificate
+   automatically — you do not need `dns_records` permissions.
+
+2. **PWA** — deploy it as a Worker with static assets instead of Vercel. `pwa/wrangler.toml`
+   already sets this up; build with the signaling URL baked in, then deploy:
+   ```bash
+   cd pwa
+   VITE_SIGNALING_URL="https://signal.example.com" pnpm build
+   npx wrangler deploy
+   ```
+   Then attach `remote.example.com` the same way as step 1.
+
+   **Do not add a `_redirects` file** for the `/connect` SPA route.
+   `not_found_handling = "single-page-application"` already handles it, and an explicit
+   `/connect → /index.html` rule loops against that setting — Cloudflare rejects the
+   deploy with error `100324`.
+
+3. **Point both ends at the new URLs** — the agent's settings screen takes the signaling
+   and PWA URLs; the PWA needs a rebuild so `VITE_SIGNALING_URL` is baked in.
+
+### Cloudflare Pages does not work for this
+
+Pages custom domains require a **manually created CNAME**, so they need `dns_records`
+write access, which a `wrangler` OAuth token normally does not have (it usually carries
+`zone:read` only). The project sits at `pending` with `"CNAME record not set"` forever.
+Worker custom domains avoid this entirely — prefer them. If you must use Pages, create
+the record by hand: `remote.example.com` CNAME → `<project>.pages.dev`, **proxied**.
+
+### Expect a stale service worker after moving the PWA
+
+An installed PWA keeps serving its **previous** build, including from a domain that is no
+longer reachable — so the user can still see errors naming the old signaling host even
+though the new deployment is correct. Have them test in a **private/incognito tab**
+first. If that works, the fix is: close every tab of the app, clear site data for **both**
+the old and new origins, delete the old home-screen icon, then reinstall from the new URL.
+
+### Verify with the VPN off
+
+```bash
+curl -s https://signal.example.com/health
+# {"ok":true,"service":"freeremotedesk-signaling"}
+
+cd signaling && SIGNALING_WS="wss://signal.example.com" node scripts/smoke.mjs
+# all good (9/9 checks)
+```
+
+Run these **with the VPN disconnected**. If they only pass with it on, you have not fixed
+anything — you have just moved the problem.
 
 ---
 

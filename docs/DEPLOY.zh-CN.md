@@ -2,6 +2,17 @@
 
 > [English](DEPLOY.md) · **简体中文**
 
+> **⚠️ 这是一个修改版分支。** 原项目（upstream）：
+> <https://github.com/Teylersf/freeremotedesk>。本仓库所有者与原项目所有者没有任何附属关系，
+> 且双方均不对可用性做任何保障。**绝大多数人应当遵循原项目的安装说明，而不是本文档** ——
+> 那才是持续维护的版本。只有当你明确需要本分支的改动（配对码长度可配置、界面双语、
+> 支持托管到自定义域名）时，才继续往下看。
+>
+> **如果你所在网络访问不了部分服务**，请阅读
+> [通过托管域名部署](../AGENTS.zh-CN.md)。`vercel.app` 和 `workers.dev` 在部分地区会被封锁或
+> 遭到 DNS 污染，而用 VPN 绕过这一点会破坏 WebRTC 的媒体通道 —— 表现和 NAT 穿透失败一模一样。
+> 在排除这一点之前，不要急着上 TURN。
+
 FreeRemoteDesk 采用自带基础设施（BYO-infrastructure）的模式：你需要把信令 Worker 和 PWA 部署到自己的 Cloudflare 与 Vercel 免费账户上。除此之外没有任何人（包括项目维护者）能访问你的实例。
 
 总成本：**每月 $0。** 总部署时间：首次约 **10 分钟**，之后无需任何操作。
@@ -21,7 +32,7 @@ FreeRemoteDesk 采用自带基础设施（BYO-infrastructure）的模式：你�
 
 信令的作用是让你两台设备在互联网上找到彼此。每个会话它只转发少量小消息。Cloudflare Workers 免费套餐每天包含 100,000 次请求 —— 对个人使用来说绰绰有余。
 
-1. 点击：**[Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/?url=https://github.com/Teylersf/freeremotedesk)**
+1. 点击：**[Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/?url=https://github.com/h8235023/freeremotedesk)**
 2. 登录你的 Cloudflare 账号（或注册一个）。
 3. 授权 Cloudflare Deploy Button 把本仓库 fork 到你的 GitHub 账号。
 4. Cloudflare 会构建并部署 Worker，大约 60 秒。
@@ -34,7 +45,7 @@ FreeRemoteDesk 采用自带基础设施（BYO-infrastructure）的模式：你�
 如果你不想用 Deploy Button：
 
 ```bash
-git clone https://github.com/Teylersf/freeremotedesk
+git clone https://github.com/h8235023/freeremotedesk
 cd freeremotedesk/signaling
 pnpm install
 npx wrangler login
@@ -45,7 +56,7 @@ npx wrangler deploy
 
 PWA 就是你在浏览器里打开、用来查看和控制远程机器的那个应用。Vercel 免费套餐每月提供 100 GB 带宽 —— 完全够用。
 
-1. 点击：**[Deploy to Vercel](https://vercel.com/new/clone?repository-url=https://github.com/Teylersf/freeremotedesk&root-directory=pwa&env=VITE_SIGNALING_URL&envDescription=Signaling%20Worker%20URL%20from%20step%201&project-name=freeremotedesk&repository-name=freeremotedesk-pwa)**
+1. 点击：**[Deploy to Vercel](https://vercel.com/new/clone?repository-url=https://github.com/h8235023/freeremotedesk&root-directory=pwa&env=VITE_SIGNALING_URL&envDescription=Signaling%20Worker%20URL%20from%20step%201&project-name=freeremotedesk&repository-name=freeremotedesk-pwa)**
 2. 登录 Vercel（或注册一个账号）。
 3. 当被提示时，把第 1 步得到的信令 URL 粘贴为 `VITE_SIGNALING_URL`。
 4. Vercel 会构建并部署 PWA。大约需要 90 秒。
@@ -78,7 +89,7 @@ npx vercel deploy --prod  # redeploy so the env var takes effect
 
 agent 运行在你想要远程访问的那台机器上。
 
-1. 打开 [最新版本](https://github.com/Teylersf/freeremotedesk/releases/latest)。
+1. 打开 [最新版本](https://github.com/h8235023/freeremotedesk/releases/latest)。
 2. 下载对应你操作系统的安装包：
    - **Windows**：`FreeRemoteDesk-<version>-x64.msi`
    - **macOS (Intel)**：`FreeRemoteDesk-<version>-x64.dmg`
@@ -110,7 +121,13 @@ agent 现在已就绪。想暴露屏幕时，点击 **Start session**。它会�
 你的信令 URL 有误，或者 Worker 没有部署成功。检查 `<your-url>/health` 是否返回 `{"ok":true,...}`。
 
 **agent 已连接，但 PWA 一直看不到屏幕**
-多半是 WebRTC ICE 失败。对称 NAT 对对称 NAT 的连接在没有 TURN 的情况下会失败。关于如何添加 TURN 服务器（Cloudflare Calls，$0.05/GB），参见 [`ARCHITECTURE.zh-CN.md`](../ARCHITECTURE.zh-CN.md#turn)。
+在假定是 NAT 问题之前，先排除可达性。如果你为了访问信令或 PWA 而挂着 VPN / Zero Trust
+（WARP），那个客户端极有可能就是破坏媒体通道的原因 —— 它会改写 UDP。参见
+[通过托管域名部署](../AGENTS.zh-CN.md)：把两部分都搬到自己的域名下，就完全不需要 VPN 了。
+
+只有当你在**关闭 VPN** 的情况下依然能访问两项服务、却仍然没有画面时，才轮到 WebRTC ICE 失败。
+对称 NAT 对对称 NAT 的连接需要 TURN 服务器，而默认配置里没有。如果要加，注意 `turn:` /
+`turns:` 还必须加进 agent 的 CSP `connect-src`（`agent/src-tauri/tauri.conf.json`）。
 
 **输入事件到不了主机**
 查看 agent 窗口的日志面板（目前仅开发版构建提供）。如果你看到 `inject_input failed` 消息，说明 enigo crate 出了问题 —— 请带着你的操作系统和版本提一个 issue。

@@ -2,6 +2,20 @@
 
 > **English** · [简体中文](DEPLOY.zh-CN.md)
 
+> **⚠️ This is a modified fork.** Upstream (the original project):
+> <https://github.com/Teylersf/freeremotedesk>. The owner of this fork has no affiliation
+> with the original project's owner, and neither party provides any guarantee of
+> availability. **Most people should follow the original project's instructions rather
+> than this document** — those are the maintained ones. Read on only if you specifically
+> want this fork's changes (configurable pairing code, bilingual UI, deployment behind a
+> custom domain).
+>
+> **If part of the stack is unreachable on your network**, see
+> [Deploying behind a custom domain](../AGENTS.md#deploying-behind-a-custom-domain-when-vercelapp--workersdev-are-unreachable).
+> `vercel.app` and `workers.dev` are blocked or DNS-poisoned in some regions, and working
+> around that with a VPN breaks the WebRTC media path — which then looks exactly like a
+> NAT traversal failure. Rule that out before reaching for TURN.
+
 FreeRemoteDesk is BYO-infrastructure: you deploy the signaling Worker and the PWA to your own free-tier Cloudflare + Vercel accounts. Nobody else (including the project maintainers) has access to your instance.
 
 Total cost: **$0/month.** Total setup time: **~10 minutes** first time, none after that.
@@ -20,7 +34,7 @@ Optional but nice:
 
 Signaling is what lets your two devices find each other on the internet. It relays a handful of small messages per session. Cloudflare Workers free tier includes 100,000 requests/day — more than enough for personal use.
 
-1. Click: **[Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/?url=https://github.com/Teylersf/freeremotedesk)**
+1. Click: **[Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/?url=https://github.com/h8235023/freeremotedesk)**
 2. Sign in to your Cloudflare account (or create one).
 3. Authorize the Cloudflare Deploy Button to fork this repo to your GitHub account.
 4. Cloudflare will build and deploy the Worker in about 60 seconds.
@@ -33,7 +47,7 @@ You can verify the deploy by opening `<your-url>/health` in a browser — should
 If you'd rather not use the Deploy Button:
 
 ```bash
-git clone https://github.com/Teylersf/freeremotedesk
+git clone https://github.com/h8235023/freeremotedesk
 cd freeremotedesk/signaling
 pnpm install
 npx wrangler login
@@ -44,7 +58,7 @@ npx wrangler deploy
 
 The PWA is what you'll open in your browser to view/control your remote machine. Vercel free tier gives you 100 GB/month of bandwidth — plenty.
 
-1. Click: **[Deploy to Vercel](https://vercel.com/new/clone?repository-url=https://github.com/Teylersf/freeremotedesk&root-directory=pwa&env=VITE_SIGNALING_URL&envDescription=Signaling%20Worker%20URL%20from%20step%201&project-name=freeremotedesk&repository-name=freeremotedesk-pwa)**
+1. Click: **[Deploy to Vercel](https://vercel.com/new/clone?repository-url=https://github.com/h8235023/freeremotedesk&root-directory=pwa&env=VITE_SIGNALING_URL&envDescription=Signaling%20Worker%20URL%20from%20step%201&project-name=freeremotedesk&repository-name=freeremotedesk-pwa)**
 2. Sign in to Vercel (or create an account).
 3. When prompted, paste your signaling URL from step 1 as `VITE_SIGNALING_URL`.
 4. Vercel will build and deploy the PWA. Takes about 90 seconds.
@@ -77,7 +91,7 @@ In Vercel's project dashboard → Settings → Domains → add your domain. Verc
 
 The agent runs on the machine you want to remotely reach.
 
-1. Go to the [latest release](https://github.com/Teylersf/freeremotedesk/releases/latest).
+1. Go to the [latest release](https://github.com/h8235023/freeremotedesk/releases/latest).
 2. Download the installer for your OS:
    - **Windows**: `FreeRemoteDesk-<version>-x64.msi`
    - **macOS (Intel)**: `FreeRemoteDesk-<version>-x64.dmg`
@@ -109,7 +123,16 @@ On your other device (phone, tablet, laptop):
 Your signaling URL is wrong or your Worker didn't deploy. Check `<your-url>/health` returns `{"ok":true,...}`.
 
 **Agent connects but PWA never shows the screen**
-Probably a WebRTC ICE failure. Symmetric-NAT-to-symmetric-NAT connections fail without TURN. See [`ARCHITECTURE.md`](../ARCHITECTURE.md#turn) for how to add a TURN server (Cloudflare Calls at $0.05/GB).
+Rule out reachability before assuming NAT. If you are running a VPN or a Zero Trust client
+(WARP) to reach signaling or the PWA at all, that client is very likely what is breaking
+the media path — it rewrites UDP. See
+[Deploying behind a custom domain](../AGENTS.md#deploying-behind-a-custom-domain-when-vercelapp--workersdev-are-unreachable):
+moving both halves onto your own domain removes the need for the VPN entirely.
+
+Only once you can reach both services **with the VPN off** and still get no picture is this
+genuinely a WebRTC ICE failure. Symmetric-NAT-to-symmetric-NAT connections need a TURN
+server; there is none configured by default. If you add one, note that `turn:` / `turns:`
+must also be allowed in the agent's CSP `connect-src` (`agent/src-tauri/tauri.conf.json`).
 
 **Input events don't reach the host**
 Check the agent window's log panel (dev builds only for now). If you see `inject_input failed` messages, the enigo crate isn't happy — file an issue with your OS/version.
