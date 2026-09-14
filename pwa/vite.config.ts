@@ -8,10 +8,14 @@ export default defineConfig({
     VitePWA({
       registerType: "autoUpdate",
       includeAssets: ["favicon.ico", "icons/*.png"],
+      // This inline manifest is the only one that ships: VitePWA writes
+      // dist/manifest.webmanifest over anything Vite copies out of public/,
+      // so there is deliberately no public/manifest.webmanifest to drift.
       manifest: {
         name: "FreeRemoteDesk",
         short_name: "FreeRemote",
-        description: "Reach your home dev machine from any device.",
+        lang: "zh-CN",
+        description: "从任何设备连上你的家用开发机。",
         theme_color: "#0a0a0a",
         background_color: "#0a0a0a",
         display: "standalone",
