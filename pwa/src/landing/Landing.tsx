@@ -5,7 +5,24 @@
  * navigate to /connect where the actual PWA client lives.
  */
 
+import { LanguageSwitch } from "../i18n/LanguageSwitch";
+import { useI18n } from "../i18n";
+import { rich } from "../i18n/rich";
+
+/** Feature cards — icons stay here, copy lives in the dictionaries. */
+const FEATURES = ["f1", "f2", "f3", "f4", "f5", "f6"] as const;
+const FEATURE_ICONS: Record<(typeof FEATURES)[number], string> = {
+  f1: "🔒",
+  f2: "💸",
+  f3: "📱",
+  f4: "⚡",
+  f5: "🔑",
+  f6: "🤖",
+};
+
 export function Landing() {
+  const { t } = useI18n();
+
   return (
     <main style={styles.main}>
       <section style={styles.hero}>
@@ -14,18 +31,14 @@ export function Landing() {
           <span style={styles.logoText}>FreeRemoteDesk</span>
         </div>
         <h1 style={styles.h1}>
-          Your home dev machine, <br />
-          from any browser. <br />
-          <span style={styles.gradient}>Free forever.</span>
+          {t("landing.hero.line1")} <br />
+          {t("landing.hero.line2")} <br />
+          <span style={styles.gradient}>{t("landing.hero.free")}</span>
         </h1>
-        <p style={styles.subhead}>
-          A remote-desktop PWA + host agent that runs entirely on your own
-          free-tier Cloudflare and Vercel accounts. No servers we control.
-          No monthly bills. No accounts to create.
-        </p>
+        <p style={styles.subhead}>{t("landing.subhead")}</p>
         <div style={styles.ctas}>
           <a href="/connect" style={styles.primary}>
-            Open the client →
+            {t("landing.cta.open")}
           </a>
           <a
             href="https://github.com/Teylersf/freeremotedesk"
@@ -33,139 +46,78 @@ export function Landing() {
             rel="noopener"
             style={styles.secondary}
           >
-            Deploy your own on GitHub
+            {t("landing.cta.deploy")}
           </a>
         </div>
       </section>
 
       <section style={styles.section}>
-        <h2 style={styles.h2}>Why it's different</h2>
+        <h2 style={styles.h2}>{t("landing.why.title")}</h2>
         <div style={styles.grid}>
-          {features.map((f) => (
-            <div key={f.title} style={styles.card}>
-              <div style={styles.cardIcon}>{f.icon}</div>
-              <div style={styles.cardTitle}>{f.title}</div>
-              <div style={styles.cardBody}>{f.body}</div>
+          {FEATURES.map((k) => (
+            <div key={k} style={styles.card}>
+              <div style={styles.cardIcon}>{FEATURE_ICONS[k]}</div>
+              <div style={styles.cardTitle}>{t(`landing.${k}.title`)}</div>
+              <div style={styles.cardBody}>{t(`landing.${k}.body`)}</div>
             </div>
           ))}
         </div>
       </section>
 
       <section style={styles.section}>
-        <h2 style={styles.h2}>Setup in 3 clicks</h2>
+        <h2 style={styles.h2}>{t("landing.setup.title")}</h2>
         <ol style={styles.steps}>
-          <li style={styles.step}>
-            <b>Hand the repo to your AI</b> (Claude, Cursor, Aider, Codex — any
-            AI coding tool with a terminal). Tell it: <em>"Set up
-            FreeRemoteDesk. Read AGENTS.md and follow it."</em>
-          </li>
-          <li style={styles.step}>
-            Complete <b>three CLI logins</b> when it prompts you — GitHub, Cloudflare, Vercel.
-            One browser click each.
-          </li>
-          <li style={styles.step}>
-            Run the <b>installer</b> your AI downloads for your OS. Paste the
-            two URLs it gives you into the wizard.
-          </li>
+          {(["step1", "step2", "step3"] as const).map((k) => (
+            <li key={k} style={styles.step}>
+              {rich(t(`landing.${k}`))}
+            </li>
+          ))}
         </ol>
         <div style={styles.stepsFoot}>
-          Prefer clicking buttons? The{" "}
+          {t("landing.stepsFoot.prefix")}
           <a href="https://github.com/Teylersf/freeremotedesk" style={styles.link}>
-            GitHub README
-          </a>{" "}
-          has "Deploy to Cloudflare" and "Deploy to Vercel" one-click buttons too.
+            {t("landing.stepsFoot.link")}
+          </a>
+          {t("landing.stepsFoot.after")}
         </div>
       </section>
 
       <section style={styles.section}>
-        <h2 style={styles.h2}>How it works</h2>
-        <p style={styles.paragraph}>
-          The <b>host agent</b> is a small Tauri app that runs on the machine
-          you want to reach. It uses your browser engine's built-in{" "}
-          <code style={styles.code}>getDisplayMedia</code> to capture the screen
-          and standard <b>WebRTC</b> to stream it — the same tech Zoom and
-          Google Meet use — with all traffic encrypted end-to-end via DTLS-SRTP.
-        </p>
-        <p style={styles.paragraph}>
-          The <b>PWA client</b> loads in any modern browser, installs to your
-          home screen on mobile, and connects directly to the host — the
-          signaling Worker only sees a handful of small handshake messages,
-          never your video or input.
-        </p>
-        <p style={styles.paragraph}>
-          The <b>signaling Worker</b> on your Cloudflare account routes the
-          handshake using a single Durable Object per session. Free tier covers
-          ~10,000 sessions/day; you'll never approach the limit for personal
-          use.
-        </p>
+        <h2 style={styles.h2}>{t("landing.how.title")}</h2>
+        <p style={styles.paragraph}>{rich(t("landing.how.p1"))}</p>
+        <p style={styles.paragraph}>{rich(t("landing.how.p2"))}</p>
+        <p style={styles.paragraph}>{rich(t("landing.how.p3"))}</p>
       </section>
 
       <section style={styles.section}>
-        <h2 style={styles.h2}>Trusted-device reconnect</h2>
-        <p style={styles.paragraph}>
-          Pair your phone or laptop once with a one-off code. From then on
-          it shows up in your paired-hosts list — one tap to reconnect, no code
-          needed. Credentials never leave the two devices; the signaling server
-          can't impersonate you.
-        </p>
+        <h2 style={styles.h2}>{t("landing.trust.title")}</h2>
+        <p style={styles.paragraph}>{t("landing.trust.body")}</p>
       </section>
 
       <footer style={styles.footer}>
         <div>
-          Open source (Apache-2.0 pending) —{" "}
+          {t("landing.footer.note")}
           <a href="https://github.com/Teylersf/freeremotedesk" style={styles.link}>
             github.com/Teylersf/freeremotedesk
           </a>
         </div>
         <div style={styles.footerLinks}>
-          <a href="/connect" style={styles.link}>Open client</a>
+          <LanguageSwitch />
+          <a href="/connect" style={styles.link}>{t("landing.footer.client")}</a>
           <a href="https://github.com/Teylersf/freeremotedesk/releases/latest" style={styles.link}>
-            Download agent
+            {t("landing.footer.download")}
           </a>
           <a
             href="https://github.com/Teylersf/freeremotedesk/blob/main/AGENTS.md"
             style={styles.link}
           >
-            For AI agents
+            {t("landing.footer.agents")}
           </a>
         </div>
       </footer>
     </main>
   );
 }
-
-const features = [
-  {
-    icon: "🔒",
-    title: "Nobody in the middle",
-    body: "Video + input traffic goes P2P over WebRTC. The signaling Worker on your own Cloudflare account sees only encrypted handshake bytes.",
-  },
-  {
-    icon: "💸",
-    title: "$0 forever",
-    body: "Cloudflare Workers + Vercel free tiers cover personal remote-desktop use easily. No trial period, no upgrade nag, no credit card.",
-  },
-  {
-    icon: "📱",
-    title: "PWA, not an app-store install",
-    body: "Open in any browser, add to home screen, launch like a native app. iOS, Android, laptops — same client everywhere.",
-  },
-  {
-    icon: "⚡",
-    title: "You own the whole stack",
-    body: "Your Cloudflare account, your Vercel deploy, your installer. Fork the repo, change anything, deploy your version.",
-  },
-  {
-    icon: "🔑",
-    title: "One-tap reconnect",
-    body: "Pair once with a code, then your paired devices show up in a list. Tap to reconnect — biometric-style trust, no code re-entry.",
-  },
-  {
-    icon: "🤖",
-    title: "Built for vibe coders",
-    body: "The setup docs are written for AI agents. Point Claude or Cursor at the repo; it deploys the whole thing while you go get coffee.",
-  },
-];
 
 const styles: Record<string, React.CSSProperties> = {
   main: {

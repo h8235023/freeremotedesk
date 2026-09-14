@@ -11,6 +11,8 @@
  * engaged sites.
  */
 
+import { t } from "./i18n";
+
 const STORAGE_KEY = "freeremotedesk.saved_hosts.v1";
 
 export type SavedHost = {
@@ -70,16 +72,16 @@ export function generateClientId(): string {
   return Array.from(bytes).map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-/** A user-friendly default label for this device. */
+/** A user-friendly default label for this device. Brand names stay as-is. */
 export function defaultDeviceName(): string {
   const ua = typeof navigator !== "undefined" ? navigator.userAgent : "";
   if (/iPhone/i.test(ua)) return "iPhone";
   if (/iPad/i.test(ua)) return "iPad";
-  if (/Android/i.test(ua)) return "Android device";
+  if (/Android/i.test(ua)) return t("device.android");
   if (/Mac OS X/i.test(ua)) return "Mac";
-  if (/Windows/i.test(ua)) return "Windows PC";
-  if (/Linux/i.test(ua)) return "Linux device";
-  return "Browser";
+  if (/Windows/i.test(ua)) return t("device.windows");
+  if (/Linux/i.test(ua)) return t("device.linux");
+  return t("device.browser");
 }
 
 // ---------- Trust URL (bookmark fallback) ----------

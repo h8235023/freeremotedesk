@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { useI18n } from "../i18n";
+import { LanguageSwitch } from "../i18n/LanguageSwitch";
 import { listSavedHosts, markConnected, type SavedHost } from "../savedHosts";
 import { PeerClient } from "../webrtc/client";
 import { SavedHostsList } from "./SavedHostsList";
@@ -14,6 +16,7 @@ type Props = {
 const MAX_CODE_LEN = 128;
 
 export function ConnectView({ signalingUrl, onConnected, onOpenSettings }: Props) {
+  const { t } = useI18n();
   const [code, setCode] = useState("");
   const [status, setStatus] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -29,7 +32,7 @@ export function ConnectView({ signalingUrl, onConnected, onOpenSettings }: Props
     e.preventDefault();
     if (!canSubmit) return;
     setBusy(true);
-    setStatus("Connecting…");
+    setStatus(t("connect.action.connecting"));
     const client = new PeerClient({
       code: code.trim().toLowerCase(),
       signalingUrl,
@@ -39,14 +42,14 @@ export function ConnectView({ signalingUrl, onConnected, onOpenSettings }: Props
       onConnected(client, "pair");
     } catch (err) {
       client.close();
-      setStatus(err instanceof Error ? err.message : "Connection failed");
+      setStatus(err instanceof Error ? err.message : t("connect.status.failed"));
       setBusy(false);
     }
   }
 
   async function reconnectTo(host: SavedHost) {
     setBusy(true);
-    setStatus(`Connecting to ${host.hostName}…`);
+    setStatus(t("connect.status.connectingTo", { name: host.hostName }));
     const client = new PeerClient({
       code: `host-${host.hostId}`,
       signalingUrl,
@@ -61,7 +64,7 @@ export function ConnectView({ signalingUrl, onConnected, onOpenSettings }: Props
       await client.connect();
       const ok = await authed;
       if (!ok) {
-        setStatus(`Auth failed for ${host.hostName}`);
+        setStatus(t("connect.status.authFailed", { name: host.hostName }));
         client.close();
         setBusy(false);
         return;
@@ -70,7 +73,7 @@ export function ConnectView({ signalingUrl, onConnected, onOpenSettings }: Props
       onConnected(client, "reconnect");
     } catch (err) {
       client.close();
-      setStatus(err instanceof Error ? err.message : "Connection failed");
+      setStatus(err instanceof Error ? err.message : t("connect.status.failed"));
       setBusy(false);
     }
   }
@@ -81,18 +84,18 @@ export function ConnectView({ signalingUrl, onConnected, onOpenSettings }: Props
         <h1 style={{ margin: 0 }}>FreeRemoteDesk</h1>
         <p className="muted" style={{ marginTop: "0.25rem" }}>
           {savedHosts.length > 0
-            ? "Tap a saved host to reconnect, or add a new one."
-            : "Enter the pairing code shown on your host."}
+            ? t("connect.subtitle.saved")
+            : t("connect.subtitle.empty")}
         </p>
       </div>
 
       <SavedHostsList hosts={savedHosts} onConnect={reconnectTo} onRefresh={refresh} />
 
       <form onSubmit={submitCode} style={styles.form}>
-        {savedHosts.length > 0 && <div style={styles.sectionLabel}>Pair a new host</div>}
+        {savedHosts.length > 0 && <div style={styles.sectionLabel}>{t("connect.pairNew")}</div>}
         <input
           maxLength={MAX_CODE_LEN}
-          placeholder="pairing code"
+          placeholder={t("connect.placeholder")}
           value={code}
           onChange={(e) =>
             setCode(e.target.value.replace(/[^a-z0-9]/gi, "").slice(0, MAX_CODE_LEN))
@@ -103,15 +106,17 @@ export function ConnectView({ signalingUrl, onConnected, onOpenSettings }: Props
           spellCheck={false}
         />
         <button type="submit" disabled={!canSubmit}>
-          {busy ? "Connecting…" : "Connect"}
+          {busy ? t("connect.action.connecting") : t("connect.action.connect")}
         </button>
       </form>
 
       {status && <div className="muted">{status}</div>}
 
       <button type="button" onClick={onOpenSettings} style={styles.link}>
-        Change signaling server
+        {t("connect.changeServer")}
       </button>
+
+      <LanguageSwitch style={{ justifyContent: "center" }} />
     </div>
   );
 }

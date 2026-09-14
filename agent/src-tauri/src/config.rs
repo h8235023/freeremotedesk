@@ -57,11 +57,23 @@ pub struct AgentConfig {
     #[serde(default)]
     pub pairing_code_len: Option<usize>,
 
+    /// UI language for the desktop window and the tray menu. `None` falls back
+    /// to [`DEFAULT_LANGUAGE`]. The WebView writes this on save; the Rust side
+    /// only reads it (the tray menu is built once, at startup).
+    #[serde(default)]
+    pub language: Option<String>,
+
     /// Trusted clients keyed by their opaque client-id. Only the hash of the
     /// shared secret is stored — never the raw value.
     #[serde(default)]
     pub trusted_clients: HashMap<String, TrustedClient>,
 }
+
+/// Language used when the config has no (or an unrecognised) `language` value.
+pub const DEFAULT_LANGUAGE: &str = "zh-CN";
+
+/// Languages the agent ships translations for.
+pub const SUPPORTED_LANGUAGES: [&str; 2] = ["zh-CN", "en"];
 
 fn config_path(app: &AppHandle) -> Result<PathBuf, String> {
     let dir = app
@@ -86,6 +98,20 @@ pub fn pairing_code_len(app: &AppHandle) -> Result<usize, String> {
         .pairing_code_len
         .unwrap_or(crate::pairing::DEFAULT_CODE_LEN))
 }
+
+/// The saved UI language, falling back to [`DEFAULT_LANGUAGE`] when unset or
+/// unrecognised. Used by the tray menu and by Rust-side fallback strings, which
+/// can't reach the WebView's i18n module.
+pub fn language(app: &AppHandle) -> String {
+    let saved = config_path(app)
+        .ok()
+        .map(|path| load_from_disk(&path).language)
+        .flatten();
+    saved
+        .filter(|l| SUPPORTED_LANGUAGES.contains(&l.as_str()))
+        .unwrap_or_else(|| DEFAULT_LANGUAGE.to_string())
+}
+
 
 fn ensure_agent_id(cfg: &mut AgentConfig) {
     if cfg.agent_id.is_empty() {
@@ -158,6 +184,22 @@ pub fn set_config(app: AppHandle, config: AgentConfig) -> Result<AgentConfig, St
     Ok(cfg)
 }
 
+/// Persist the UI language without touching the rest of the config. The WebView
+/// calls this on every switch so the tray menu picks the change up on the next
+/// launch. Unsupported values are ignored rather than rejected — the UI owns the
+/// authoritative list, this is just a mirror for the Rust side.
+#[tauri::command]
+pub fn set_language(app: AppHandle, language: String) -> Result<(), String> {
+    if !SUPPORTED_LANGUAGES.contains(&language.as_str()) {
+        return Ok(());
+    }
+    let path = config_path(&app)?;
+    let mut cfg = load_from_disk(&path);
+    ensure_agent_id(&mut cfg);
+    cfg.language = Some(language);
+    save(&path, &cfg)
+}
+
 // ---------- Trusted-client management ----------
 
 #[derive(Debug, Serialize)]
@@ -201,12 +243,13 @@ pub fn store_trusted_client(
     let path = config_path(&app)?;
     let mut cfg = load_from_disk(&path);
     ensure_agent_id(&mut cfg);
+    let fallback_name = crate::i18n::tr(&app, "Unknown device", "未知设备");
     cfg.trusted_clients.insert(
         client_id,
         TrustedClient {
             secret_hash: hash_secret(&secret),
             name: if name.trim().is_empty() {
-                "Unknown device".to_string()
+                fallback_name
             } else {
                 name
             },

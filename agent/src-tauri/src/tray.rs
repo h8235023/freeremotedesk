@@ -4,6 +4,7 @@
 //! than exiting), reachable from the tray. Right-click menu offers Show /
 //! Start session / Quit.
 
+use crate::i18n::tr;
 use tauri::{
     menu::{Menu, MenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
@@ -11,8 +12,11 @@ use tauri::{
 };
 
 pub fn install(app: &AppHandle) -> tauri::Result<()> {
-    let show = MenuItem::with_id(app, "show", "Show", true, None::<&str>)?;
-    let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
+    // Labels are read from the saved config language. Changing the language in
+    // the UI updates the menu on the next launch, not immediately — the tray is
+    // built once here, before the WebView exists.
+    let show = MenuItem::with_id(app, "show", tr(app, "Show", "显示窗口"), true, None::<&str>)?;
+    let quit = MenuItem::with_id(app, "quit", tr(app, "Quit", "退出"), true, None::<&str>)?;
     let menu = Menu::with_items(app, &[&show, &quit])?;
 
     let _tray = TrayIconBuilder::with_id("main")

@@ -1,5 +1,7 @@
 # Security Model
 
+> **English** · [简体中文](SECURITY.zh-CN.md)
+
 ## Threat model
 
 We assume:
@@ -28,7 +30,7 @@ We assume:
 ### Pair time (one-shot)
 
 1. Host agent generates ed25519 keypair on install. Public key registered locally.
-2. Host agent requests pairing code from signaling. Gets `x7k2q9`, valid 60s.
+2. Host agent requests pairing code from signaling. Gets `x7k2q9`, valid 60s. *(The 60 s expiry is **not enforced in code** — see [Rate limiting](#rate-limiting).)*
 3. User reads code to their PWA client (or scans QR).
 4. PWA POSTs `pair.claim` with the code + PWA's WebAuthn credential creation options.
 5. Signaling matches, opens a bidirectional channel between the two.
@@ -49,11 +51,23 @@ We assume:
 
 ## Rate limiting
 
+> **⚠️ Not found in the code — kept for reference.**
+> None of the limits below are implemented in this repository. There is no
+> `env.RATE_LIMITER` binding in `signaling/wrangler.toml` (which states
+> "no rate limit binding required for MVP"), the Worker never reads the client
+> IP, and no TTL or one-shot consumption of a pairing code exists anywhere — a
+> room simply lives as long as its peers stay connected. The text is **left in
+> place rather than deleted** because these may describe behaviour provided by
+> the underlying platform (Cloudflare's edge / Durable Objects) rather than by
+> this code. They may also be aspirational. Treat them as unverified until
+> someone traces them to a concrete mechanism; see the fuller table in
+> [`PROTOCOL.md`](PROTOCOL.md#properties-previously-documented-here).
+
 - **Pairing code guesses**: 5 per IP per minute; global 1000 per minute (any IP)
 - **Session inits**: 60 per credential per hour (prevents runaway loops)
 - **WebSocket connections**: 20 concurrent per IP
 
-Enforced at the CF Worker layer via `env.RATE_LIMITER` binding (Cloudflare Rate Limiting API).
+*(Claimed to be)* enforced at the CF Worker layer via `env.RATE_LIMITER` binding (Cloudflare Rate Limiting API).
 
 ## Dependencies audited before Phase 4
 

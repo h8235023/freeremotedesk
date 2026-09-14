@@ -8,6 +8,9 @@ import {
 } from "@tauri-apps/plugin-notification";
 import { HostPeer } from "./webrtc/host";
 import { SetupWizard } from "./SetupWizard";
+import { applyDocumentLang, getLang, setLang, t, useI18n } from "./i18n";
+import { LanguageSwitch } from "./i18n/LanguageSwitch";
+import { rich } from "./i18n/rich";
 import type { InputEvent } from "./protocol";
 import type { AgentConfig, TrustedClientSummary } from "./types";
 
@@ -19,18 +22,16 @@ type UiState =
   | { kind: "incoming"; config: AgentConfig; trusted: TrustedClientSummary[]; clientId: string; clientName: string }
   | { kind: "error"; config: AgentConfig | null; message: string };
 
-function useHostName(): string {
-  return "My computer";
-}
-
 function App() {
+  useI18n(); // re-render on language change
   const [state, setState] = useState<UiState>({ kind: "loading" });
   const persistentPeerRef = useRef<HostPeer | null>(null);
   const pairPeerRef = useRef<HostPeer | null>(null);
-  const hostName = useHostName();
+  const hostName = t("agent.hostName");
 
   useEffect(() => {
     document.title = "FreeRemoteDesk Agent";
+    applyDocumentLang();
     void bootstrap();
     // Request notification permission opportunistically.
     void ensureNotificationPermission();
@@ -50,6 +51,15 @@ function App() {
   async function bootstrap() {
     try {
       const config = await invoke<AgentConfig>("get_config");
+      // The Rust config is the source of truth for language — it's what the tray
+      // menu was built from. Adopt it so the two halves of the app agree.
+      if (config.language === "zh-CN" || config.language === "en") {
+        setLang(config.language);
+      } else {
+        // First run: persist the locale-detected language so the tray menu
+        // agrees with the UI from the next launch on.
+        invoke("set_language", { language: getLang() }).catch(() => {});
+      }
       if (!config.signaling_url) {
         setState({ kind: "setup", current: config });
         return;
@@ -141,13 +151,13 @@ function App() {
     peer.on("onIncomingAuth", async (clientId) => {
       const fresh = await refreshTrusted();
       const client = fresh.find((c) => c.client_id === clientId);
-      const clientName = client?.name ?? "A trusted device";
+      const clientName = client?.name ?? t("agent.trustedDevice");
 
       // Fire OS notification + focus window.
       try {
         await sendNotification({
           title: "FreeRemoteDesk",
-          body: `${clientName} is trying to reconnect — click to accept.`,
+          body: t("agent.notification.body", { name: clientName }),
         });
       } catch { /* best effort */ }
       try { await invoke("focus_window"); } catch { /* best effort */ }
@@ -315,6 +325,7 @@ function App() {
             pwa_url: null,
             agent_id: "",
             pairing_code_len: null,
+            language: null,
             trusted_clients: {},
           };
     persistentPeerRef.current?.close();
@@ -333,7 +344,7 @@ function App() {
   // ---------- Render ----------
 
   if (state.kind === "loading") {
-    return <Layout><div style={{ opacity: 0.5 }}>Loading…</div></Layout>;
+    return <Layout><div style={{ opacity: 0.5 }}>{t("agent.loading")}</div></Layout>;
   }
 
   if (state.kind === "setup") {
@@ -349,9 +360,12 @@ function App() {
       <Layout>
         <h1 style={{ margin: 0 }}>FreeRemoteDesk</h1>
         <div style={{ color: "#ef4444", maxWidth: 380, textAlign: "center" }}>
-          {state.message}
+          <div style={{ marginBottom: "0.4rem" }}>{t("agent.error.title")}</div>
+          {/* Raw diagnostic text — deliberately untranslated; some of it comes
+              from the browser (e.g. "Permission denied") and is matched on. */}
+          <div style={{ opacity: 0.7, fontSize: "0.85rem" }}>{state.message}</div>
         </div>
-        <button onClick={bootstrap}>Reload</button>
+        <button onClick={bootstrap}>{t("agent.reload")}</button>
       </Layout>
     );
   }
@@ -361,16 +375,14 @@ function App() {
       <Layout>
         <h1 style={{ margin: 0 }}>FreeRemoteDesk</h1>
         <div style={styles.incomingCard}>
-          <div style={styles.incomingTitle}>Incoming connection</div>
+          <div style={styles.incomingTitle}>{t("agent.incoming.title")}</div>
           <div style={styles.incomingSub}>
-            <b>{state.clientName}</b> wants to reconnect.
+            {rich(t("agent.incoming.body", { name: state.clientName }))}
           </div>
-          <div style={styles.incomingSub}>
-            You'll be asked to pick a screen or window to share.
-          </div>
+          <div style={styles.incomingSub}>{t("agent.incoming.hint")}</div>
           <div style={{ display: "flex", gap: "0.6rem", marginTop: "0.4rem" }}>
-            <button onClick={acceptIncoming} style={styles.primary}>Accept</button>
-            <button onClick={declineIncoming}>Decline</button>
+            <button onClick={acceptIncoming} style={styles.primary}>{t("agent.action.accept")}</button>
+            <button onClick={declineIncoming}>{t("agent.action.decline")}</button>
           </div>
         </div>
       </Layout>
@@ -384,12 +396,9 @@ function App() {
       {state.kind === "idle" && (
         <>
           <button onClick={() => manuallyStartListening(state.config)} style={styles.primary}>
-            Start listening
+            {t("agent.idle.start")}
           </button>
-          <div style={styles.hint}>
-            You'll pick which screen to share. Then trusted devices can
-            reconnect anytime — you'll get a prompt each time.
-          </div>
+          <div style={styles.hint}>{t("agent.idle.hint")}</div>
         </>
       )}
 
@@ -399,19 +408,24 @@ function App() {
             <div style={styles.dot} />
             <span>
               {state.sessionState
-                ? `Session · ${state.sessionState}`
-                : `Listening · ${state.trusted.length} trusted device${state.trusted.length === 1 ? "" : "s"}`}
+                ? t("agent.status.session", { state: state.sessionState })
+                : t(
+                    state.trusted.length === 1
+                      ? "agent.status.listening.one"
+                      : "agent.status.listening.many",
+                    { n: state.trusted.length },
+                  )}
             </span>
           </div>
 
           {state.trusted.length > 0 && (
             <div style={styles.list}>
-              <div style={styles.listTitle}>Trusted devices</div>
+              <div style={styles.listTitle}>{t("agent.trusted.title")}</div>
               {state.trusted.map((tc) => (
                 <div key={tc.client_id} style={styles.listRow}>
                   <span>{tc.name}</span>
                   <button style={styles.linkBtn} onClick={() => revoke(tc.client_id)}>
-                    Revoke
+                    {t("agent.action.revoke")}
                   </button>
                 </div>
               ))}
@@ -423,7 +437,7 @@ function App() {
               <CodeDisplay code={state.pairCode} />
             ) : (
               <button onClick={() => startPairCode(state.config)}>
-                Add a new device
+                {t("agent.action.addDevice")}
               </button>
             )}
           </div>
@@ -435,14 +449,21 @@ function App() {
           )}
 
           <button onClick={() => stopEverything(state.config)} style={styles.linkBtn}>
-            Stop listening
+            {t("agent.action.stopListening")}
           </button>
         </>
       )}
 
       <button onClick={openSettings} style={{ ...styles.linkBtn, marginTop: "0.5rem" }}>
-        Settings
+        {t("agent.action.settings")}
       </button>
+
+      <LanguageSwitch
+        style={{ marginTop: "0.25rem" }}
+        onChange={(next) => {
+          invoke("set_language", { language: next }).catch(() => {});
+        }}
+      />
     </Layout>
   );
 }

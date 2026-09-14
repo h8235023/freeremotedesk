@@ -1,5 +1,7 @@
 # Architecture
 
+> **English** · [简体中文](ARCHITECTURE.zh-CN.md)
+
 Decisions locked in during initial planning. This is the "why we picked X over Y" doc — reread before diverging.
 
 ## Non-goals
@@ -75,7 +77,7 @@ After pairing:
 
 ## What the signaling service actually does
 
-- **Stateless** except for the pairing/session Durable Objects (auto-expire after 60s if not claimed).
+- **Stateless** except for the pairing/session Durable Objects (auto-expire after 60s if not claimed). *(The 60 s auto-expiry is **not found in the code** — no TTL is set or enforced; see [`docs/PROTOCOL.md`](docs/PROTOCOL.md#properties-previously-documented-here).)*
 - **Never sees session content.** Only relays SDP offers/answers and ICE candidates. All encrypted E2E by DTLS-SRTP.
 - **Auth gate.** Verifies WebAuthn assertions before letting a client claim a host.
 - **No user accounts by default.** Trust is per-device-pair, not per-user. (User accounts can layer on later for multi-device management.)

@@ -1,7 +1,7 @@
 {
   "name": "FreeRemoteDesk",
   "short_name": "FreeRemote",
-  "description": "Reach your home dev machine from any device.",
+  "description": "从任何设备连上你的家用开发机。",
   "start_url": "/",
   "display": "standalone",
   "orientation": "any",

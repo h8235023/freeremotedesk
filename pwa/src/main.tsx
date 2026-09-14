@@ -1,7 +1,10 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App";
+import { applyDocumentLang } from "./i18n";
 import "./styles.css";
+
+applyDocumentLang();
 
 const rootEl = document.getElementById("root");
 if (!rootEl) throw new Error("#root missing from index.html");

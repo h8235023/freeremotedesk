@@ -5,6 +5,8 @@ export type AgentConfig = {
   agent_id: string;
   /** null = use the built-in default. Clamped by the Rust side on save. */
   pairing_code_len: number | null;
+  /** UI language — the Rust tray menu reads this at startup. null = "zh-CN". */
+  language: string | null;
   trusted_clients: Record<string, TrustedClient>;
 };
 

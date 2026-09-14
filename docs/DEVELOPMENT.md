@@ -1,5 +1,7 @@
 # Development Setup
 
+> **English** · [简体中文](DEVELOPMENT.zh-CN.md)
+
 Everything you need to build and run FreeRemoteDesk locally. Windows-first (host machine is Windows), but the pwa + signaling parts work identically on macOS/Linux.
 
 ## Toolchain — what you need installed

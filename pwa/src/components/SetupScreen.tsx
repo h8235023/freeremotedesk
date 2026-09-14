@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { setSignalingUrl, toHttpUrl } from "../config";
+import { t, useI18n } from "../i18n";
+import { LanguageSwitch } from "../i18n/LanguageSwitch";
 
 type Props = { onSaved: (url: string) => void };
 
@@ -11,6 +13,7 @@ type Props = { onSaved: (url: string) => void };
  * the PWA with VITE_SIGNALING_URL baked in.
  */
 export function SetupScreen({ onSaved }: Props) {
+  useI18n(); // re-render on language change
   const [url, setUrl] = useState("");
   const [status, setStatus] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -21,19 +24,19 @@ export function SetupScreen({ onSaved }: Props) {
     e.preventDefault();
     if (!canSubmit) return;
     setBusy(true);
-    setStatus("Testing…");
+    setStatus(t("setup.action.testing"));
     try {
       const cleaned = url.trim().replace(/\/+$/, "");
       const r = await fetch(`${toHttpUrl(cleaned)}/health`, { method: "GET" });
-      if (!r.ok) throw new Error(`server returned ${r.status}`);
+      if (!r.ok) throw new Error(t("setup.error.serverReturned", { status: r.status }));
       const j = (await r.json()) as { ok?: boolean; service?: string };
       if (!j.ok || j.service !== "freeremotedesk-signaling") {
-        throw new Error(`not a FreeRemoteDesk signaling server`);
+        throw new Error(t("setup.error.notSignaling"));
       }
       setSignalingUrl(cleaned);
       onSaved(cleaned);
     } catch (err) {
-      setStatus(err instanceof Error ? err.message : "Health check failed");
+      setStatus(err instanceof Error ? err.message : t("setup.error.healthCheck"));
       setBusy(false);
     }
   }
@@ -43,13 +46,13 @@ export function SetupScreen({ onSaved }: Props) {
       <div>
         <h1 style={{ margin: 0 }}>FreeRemoteDesk</h1>
         <p className="muted" style={{ marginTop: "0.25rem" }}>
-          First-time setup. Paste your signaling Worker URL.
+          {t("setup.subtitle")}
         </p>
       </div>
 
       <input
         autoFocus
-        placeholder="https://freeremotedesk-signaling.you.workers.dev"
+        placeholder={t("setup.placeholder")}
         value={url}
         onChange={(e) => setUrl(e.target.value)}
         spellCheck={false}
@@ -59,15 +62,16 @@ export function SetupScreen({ onSaved }: Props) {
       />
 
       <button type="submit" disabled={!canSubmit}>
-        {busy ? "Testing…" : "Continue"}
+        {busy ? t("setup.action.testing") : t("setup.action.continue")}
       </button>
 
       {status && <div className="muted">{status}</div>}
 
       <div className="muted" style={{ fontSize: "0.75rem", opacity: 0.6 }}>
-        Don't have one yet? Click "Deploy to Cloudflare" on the FreeRemoteDesk
-        GitHub repo to spin up your own signaling Worker in a couple of clicks.
+        {t("setup.footer")}
       </div>
+
+      <LanguageSwitch style={{ justifyContent: "center" }} />
     </form>
   );
 }

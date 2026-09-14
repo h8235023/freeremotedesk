@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { t, useI18n } from "../i18n";
+import { rich } from "../i18n/rich";
 import {
   defaultDeviceName,
   generateClientId,
@@ -27,6 +29,7 @@ type Phase =
  * "Here's your bookmark URL for extra durability."
  */
 export function SavePrompt({ client, onSaved, onDismiss }: Props) {
+  useI18n(); // re-render on language change
   const [deviceName, setDeviceName] = useState(defaultDeviceName());
   const [phase, setPhase] = useState<Phase>({ kind: "form" });
   const [urlCopied, setUrlCopied] = useState(false);
@@ -45,12 +48,12 @@ export function SavePrompt({ client, onSaved, onDismiss }: Props) {
         if (msg.t === "pair.save.ok") {
           resolve({ ok: true, hostId: msg.hostId, hostName: msg.hostName });
         } else if (msg.t === "pair.save.fail") {
-          resolve({ ok: false, reason: msg.reason ?? "host rejected pair.save" });
+          resolve({ ok: false, reason: msg.reason ?? t("save.error.rejected") });
         }
       };
       client.on("onControlMessage", handler);
       setTimeout(
-        () => resolve({ ok: false, reason: "host did not respond within 5s" }),
+        () => resolve({ ok: false, reason: t("save.error.timeout") }),
         5000,
       );
     });
@@ -62,7 +65,7 @@ export function SavePrompt({ client, onSaved, onDismiss }: Props) {
       secret,
     });
     if (!sent) {
-      setPhase({ kind: "error", reason: "Control channel not open yet — wait a moment and try again." });
+      setPhase({ kind: "error", reason: t("save.error.controlChannel") });
       return;
     }
 
@@ -98,17 +101,14 @@ export function SavePrompt({ client, onSaved, onDismiss }: Props) {
       <div style={styles.card} onClick={(e) => e.stopPropagation()}>
         {phase.kind === "form" && (
           <>
-            <div style={styles.title}>Save this host?</div>
-            <div style={styles.help}>
-              Next time you open the PWA, this host shows up in a list —
-              one tap to reconnect, no code needed.
-            </div>
+            <div style={styles.title}>{t("save.title")}</div>
+            <div style={styles.help}>{t("save.help")}</div>
             <label style={styles.label}>
-              <span style={styles.hint}>Device name (for your reference)</span>
+              <span style={styles.hint}>{t("save.deviceName")}</span>
               <input
                 value={deviceName}
                 onChange={(e) => setDeviceName(e.target.value)}
-                placeholder="e.g. My iPhone"
+                placeholder={t("save.deviceNamePlaceholder")}
                 style={styles.input}
                 autoFocus
               />
@@ -119,31 +119,26 @@ export function SavePrompt({ client, onSaved, onDismiss }: Props) {
                 disabled={!deviceName.trim()}
                 style={{ ...styles.btn, ...styles.primary }}
               >
-                Save
+                {t("save.action.save")}
               </button>
-              <button onClick={onDismiss} style={styles.btn}>Not now</button>
+              <button onClick={onDismiss} style={styles.btn}>{t("save.action.notNow")}</button>
             </div>
           </>
         )}
 
         {phase.kind === "saving" && (
           <div style={{ padding: "1rem 0", textAlign: "center", opacity: 0.7 }}>
-            Saving…
+            {t("save.saving")}
           </div>
         )}
 
         {phase.kind === "success" && (
           <>
-            <div style={styles.title}>✅ Saved</div>
+            <div style={styles.title}>{t("save.success.title")}</div>
             <div style={styles.help}>
-              <b>{phase.entry.hostName}</b> is now in your paired-hosts list.
-              You can reconnect anytime.
+              {rich(t("save.success.help", { name: phase.entry.hostName }))}
             </div>
-            <div style={styles.help}>
-              <b>Optional but recommended:</b> bookmark this URL. If your
-              browser ever clears its storage, opening the bookmark restores
-              access — no re-pairing needed.
-            </div>
+            <div style={styles.help}>{rich(t("save.success.recommend"))}</div>
             <div style={styles.urlBox}>
               <input
                 readOnly
@@ -155,35 +150,33 @@ export function SavePrompt({ client, onSaved, onDismiss }: Props) {
                 onClick={() => copyTrustUrl(phase.trustUrl)}
                 style={styles.copyBtn}
               >
-                {urlCopied ? "Copied ✓" : "Copy"}
+                {urlCopied ? t("save.action.copied") : t("save.action.copy")}
               </button>
             </div>
-            <div style={styles.hint}>
-              Anyone with this URL gets access. Keep it private.
-            </div>
+            <div style={styles.hint}>{t("save.warning")}</div>
             <button
               onClick={() => {
                 onSaved(phase.entry.hostName);
               }}
               style={{ ...styles.btn, ...styles.primary }}
             >
-              Done
+              {t("save.action.done")}
             </button>
           </>
         )}
 
         {phase.kind === "error" && (
           <>
-            <div style={styles.title}>Something went wrong</div>
+            <div style={styles.title}>{t("save.error.title")}</div>
             <div style={{ ...styles.help, color: "#fca5a5" }}>{phase.reason}</div>
             <div style={{ display: "flex", gap: "0.5rem" }}>
               <button
                 onClick={() => setPhase({ kind: "form" })}
                 style={{ ...styles.btn, ...styles.primary }}
               >
-                Try again
+                {t("save.action.tryAgain")}
               </button>
-              <button onClick={onDismiss} style={styles.btn}>Close</button>
+              <button onClick={onDismiss} style={styles.btn}>{t("save.action.close")}</button>
             </div>
           </>
         )}

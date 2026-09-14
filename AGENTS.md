@@ -1,5 +1,7 @@
 # Instructions for AI coding agents
 
+> **English** · [简体中文](AGENTS.zh-CN.md)
+
 > **⚠️ This fork has been modified with AI assistance (Claude Code).**
 > The pairing code length is no longer a fixed 6 characters — it is
 > user-configurable (6–128, default 16) in the agent's setup/settings screen, and

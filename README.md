@@ -1,5 +1,7 @@
 # FreeRemoteDesk
 
+> **English** · [简体中文](README.zh-CN.md)
+
 Reach your home dev machine from any browser. Zero servers you run. Zero monthly cost. You own the whole stack.
 
 > **⚠️ This fork has been modified with AI assistance (Claude Code).**
@@ -68,7 +70,14 @@ The script does everything Path A does, minus the AI narration.
 | `signaling/` | Cloudflare Workers Durable Object relay |
 | `scripts/setup.{sh,ps1}` | One-shot automated deploy |
 | `AGENTS.md` | Structured instructions for AI agents doing setup on your behalf |
-| `docs/` | Architecture, deploy, protocol, security, development |
+| `docs/` | Architecture, deploy, protocol, security, development, i18n |
+
+## Languages
+
+The PWA, the agent window and these docs are available in **Simplified Chinese
+(default) and English** — switch at runtime from the picker in either UI. Every
+doc has a `.zh-CN.md` sibling; the English files stay canonical. How the mechanism
+works and how to add a language: [`docs/I18N.md`](docs/I18N.md).
 
 ## Local development
 

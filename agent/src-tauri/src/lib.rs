@@ -1,6 +1,7 @@
 //! FreeRemoteDesk host agent — library crate.
 
 mod config;
+mod i18n;
 mod input;
 mod pairing;
 mod tray;
@@ -39,6 +40,7 @@ pub fn run() {
             input::inject_input,
             config::get_config,
             config::set_config,
+            config::set_language,
             config::list_trusted_clients,
             config::store_trusted_client,
             config::verify_trusted_client,

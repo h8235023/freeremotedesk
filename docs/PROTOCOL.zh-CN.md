@@ -1,0 +1,90 @@
+# 线路协议
+
+> [English](PROTOCOL.md) · **简体中文**
+
+## 信令消息（基于 WebSocket 的 JSON）
+
+所有消息都是 JSON 信封：`{ "t": "<type>", ...fields }`。
+
+### 客户端 → 信令服务
+
+| `t` | 字段 | 时机 |
+|---|---|---|
+| `pair.new` | `{ agentPubKey }` | 主机端代理向服务器请求一个新的配对码 |
+| `pair.claim` | `{ code }` | PWA 客户端提交配对码以认领一台主机 |
+| `session.init` | `{ hostId, assertion }`（WebAuthn） | 已配对的客户端发起新会话 |
+| `sdp.offer` | `{ peerId, sdp }` | 发往对端的 WebRTC offer |
+| `sdp.answer` | `{ peerId, sdp }` | 发往对端的 WebRTC answer |
+| `ice` | `{ peerId, candidate }` | 发往对端的 trickle ICE candidate |
+| `pong` | `{}` | 保活响应 |
+
+### 信令服务 → 客户端
+
+| `t` | 字段 | 含义 |
+|---|---|---|
+| `pair.code` | `{ code, expiresAt }` | 对 `pair.new` 的回复 |
+| `pair.claimed` | `{ peerId }` | 告知主机：已有客户端认领了该配对码 |
+| `session.ready` | `{ peerId }` | 对端已在线，可以开始 WebRTC 协商 |
+| `sdp.offer` / `sdp.answer` / `ice` | （转发自对端） | 原样转发，内容由 DTLS-SRTP 加密 |
+| `error` | `{ code, message }` | 出错了 |
+| `ping` | `{}` | 保活 |
+
+每 25 秒收发一次 ping/pong，以熬过负载均衡器的空闲超时。
+
+## 配对码格式
+
+- 由主机端代理在本地生成（`agent/src-tauri/src/pairing.rs`）。信令服务从不生成
+  或校验配对码——它只把配对码当作 Durable Object 的房间键使用。
+- 长度可由用户配置：6–128 个字符，默认 16。下限沿用了原先的固定长度；上限取自
+  Worker 的房间键检查（`roomKey.length > 128` → 400）。
+- 字符集为 `23456789abcdefghjkmnpqrstuvwxyz`（31 个字符，剔除了 0/1/i/l/o 以便
+  辨认），因此 16 个字符约等于 79 比特。
+- 每次配对尝试都会生成一个新配对码，并在配对连接关闭时丢弃。
+- 配对码*就是*房间键：两个对端可以加入 `/ws/{code}`，第三个会被拒绝，因为房间
+  最多只允许两条连接。
+
+### 此前记载于此的特性
+
+本节过去将以下内容作为保证来陈述。这些内容被**保留在原文中而非删除**，但在本
+仓库中未找到它们的任何实现。它们可能描述的是底层平台（Cloudflare 边缘节点 /
+Durable Objects，或浏览器）提供的行为，也可能只是愿景——在有人把它们追溯到具
+体机制之前，请将其视为未经证实。
+
+| 说法 | 代码中实际的情况 |
+|---|---|
+| “约 30 比特熵——足以抵御在线暴力破解（服务器按 IP 限流至每分钟 5 次尝试）” | `signaling/src/index.ts` 中不存在任何限流逻辑。Worker 从不读取客户端 IP；Durable Object 只做字节转发。 |
+| “生成后 60 秒内有效” | 任何地方都没有设置或强制执行 TTL。房间的生命周期与其对端连接一样长。 |
+| “一次性：客户端认领的那一刻即被消耗” | 没有任何东西被消耗或失效。第三个对端被拒绝，仅仅是因为房间最多允许两条连接——而不是因为配对码已作废。 |
+
+由于上述各项均未在代码中强制执行，目前配对码的熵就是房间与不速之客之间的唯一
+屏障。请尽量使用更长的配对码。
+
+## WebRTC 通道布局
+
+| 轨道 / 通道 | 用途 | 优先级 |
+|---|---|---|
+| `video`（RTP） | 屏幕帧 | 高 |
+| `audio`（RTP，可选） | 主机音频 | 中 |
+| `input`（DataChannel，有序+可靠） | 鼠标/键盘事件 | 高 |
+| `control`（DataChannel，有序+可靠） | 光标样式、显示器列表、分辨率变更 | 中 |
+| `clipboard`（DataChannel，有序+可靠） | 剪贴板同步（第 4 阶段及以后） | 低 |
+| `files`（DataChannel，有序+可靠） | 文件传输分片（第 4 阶段及以后） | 低 |
+
+## 输入事件 schema（DataChannel）
+
+紧凑的二进制或 JSON——MVP 阶段偏向使用 JSON 以求简单，若受带宽制约再切换到二进制。
+
+```
+{ "t": "m", "x": 512, "y": 384 }              // mouse move (screen coords)
+{ "t": "mb", "b": 0, "d": true }              // mouse button (0=left,1=middle,2=right; d=down)
+{ "t": "w", "dx": 0, "dy": -120 }             // wheel
+{ "t": "k", "code": "KeyA", "d": true }       // key event; codes = KeyboardEvent.code strings
+{ "t": "tap", "x": 512, "y": 384 }            // touch tap (mobile PWA)
+```
+
+服务器通过 `control` 通道回传控制帧：
+```
+{ "t": "cursor", "kind": "text" }             // cursor style change
+{ "t": "monitors", "list": [{id, w, h}] }    // monitor enumeration
+{ "t": "resize", "w": 1920, "h": 1080 }       // active monitor resolution
+```

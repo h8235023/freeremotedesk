@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useI18n } from "../i18n";
 import type { InputEvent } from "../webrtc/input";
 import { sendKeyPress } from "../webrtc/input";
 
@@ -16,6 +17,7 @@ type Props = {
  * the OS keyboard. Auto-hides after 3s of no interaction, taps show it again.
  */
 export function SessionToolbar({ send, onToggleKeyboard, keyboardOpen, onExit }: Props) {
+  const { t } = useI18n();
   const [stickyCtrl, setStickyCtrl] = useState(false);
   const [stickyAlt, setStickyAlt] = useState(false);
   const [stickyShift, setStickyShift] = useState(false);
@@ -35,7 +37,7 @@ export function SessionToolbar({ send, onToggleKeyboard, keyboardOpen, onExit }:
       <button
         style={{ ...styles.btn, ...(keyboardOpen ? styles.btnActive : {}) }}
         onClick={onToggleKeyboard}
-        title="Show keyboard"
+        title={t("toolbar.showKeyboard")}
       >
         ⌨
       </button>
@@ -87,7 +89,7 @@ export function SessionToolbar({ send, onToggleKeyboard, keyboardOpen, onExit }:
       >
         ↵
       </button>
-      <button style={{ ...styles.btn, ...styles.exit }} onClick={onExit} title="End session">
+      <button style={{ ...styles.btn, ...styles.exit }} onClick={onExit} title={t("toolbar.endSession")}>
         ✕
       </button>
     </div>

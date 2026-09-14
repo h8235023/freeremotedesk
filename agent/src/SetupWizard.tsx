@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { disable as autostartDisable, enable as autostartEnable, isEnabled as autostartIsEnabled } from "@tauri-apps/plugin-autostart";
+import { rich } from "./i18n/rich";
+import { LanguageSwitch } from "./i18n/LanguageSwitch";
+import { t, useI18n } from "./i18n";
 import type { AgentConfig } from "./types";
 
 type Props = { current: AgentConfig; onSaved: (cfg: AgentConfig) => void };
@@ -18,6 +21,7 @@ const DEFAULT_CODE_LEN = 16;
  * This screen asks for both URLs and saves them to the agent's config.
  */
 export function SetupWizard({ current, onSaved }: Props) {
+  const { lang } = useI18n();
   const [signalingUrl, setSignalingUrl] = useState(current.signaling_url ?? "");
   const [pwaUrl, setPwaUrl] = useState(current.pwa_url ?? "");
   const [codeLen, setCodeLen] = useState(current.pairing_code_len ?? DEFAULT_CODE_LEN);
@@ -35,7 +39,7 @@ export function SetupWizard({ current, onSaved }: Props) {
     e.preventDefault();
     if (!canSave) return;
     setBusy(true);
-    setStatus("Testing signaling URL…");
+    setStatus(t("wizard.status.testing"));
 
     const cleaned = normalizeUrl(signalingUrl);
     try {
@@ -44,10 +48,14 @@ export function SetupWizard({ current, onSaved }: Props) {
       if (!r.ok) throw new Error(`server returned ${r.status}`);
       const j = (await r.json()) as { ok?: boolean; service?: string };
       if (!j.ok || j.service !== "freeremotedesk-signaling") {
-        throw new Error(`not a FreeRemoteDesk signaling server (got: ${JSON.stringify(j)})`);
+        throw new Error(t("wizard.error.notSignaling", { body: JSON.stringify(j) }));
       }
     } catch (err) {
-      setStatus(`Health check failed: ${err instanceof Error ? err.message : String(err)}`);
+      setStatus(
+        t("wizard.error.healthFailed", {
+          reason: err instanceof Error ? err.message : String(err),
+        }),
+      );
       setBusy(false);
       return;
     }
@@ -59,6 +67,7 @@ export function SetupWizard({ current, onSaved }: Props) {
           signaling_url: cleaned,
           pwa_url: pwaUrl.trim() ? pwaUrl.trim() : null,
           pairing_code_len: codeLen,
+          language: lang,
         },
       });
 
@@ -73,56 +82,64 @@ export function SetupWizard({ current, onSaved }: Props) {
 
       onSaved(next);
     } catch (err) {
-      setStatus(`Save failed: ${err instanceof Error ? err.message : String(err)}`);
+      setStatus(
+        t("wizard.error.saveFailed", {
+          reason: err instanceof Error ? err.message : String(err),
+        }),
+      );
       setBusy(false);
     }
   }
 
   return (
     <form onSubmit={save} style={styles.form}>
-      <h1 style={{ margin: 0 }}>Setup</h1>
-      <div style={styles.help}>
-        FreeRemoteDesk runs on YOUR own free-tier Cloudflare and Vercel
-        accounts. Deploy your instance from the GitHub repo, then paste the
-        two URLs here.
+      <div style={styles.header}>
+        <h1 style={{ margin: 0 }}>{t("wizard.title")}</h1>
+        <LanguageSwitch
+          onChange={(next) => {
+            // Mirror to the Rust config so the tray menu follows on next launch.
+            invoke("set_language", { language: next }).catch(() => {});
+          }}
+        />
       </div>
+      <div style={styles.help}>{rich(t("wizard.help"))}</div>
 
       <label style={styles.label}>
-        <span>Signaling URL <span style={styles.req}>*</span></span>
+        <span>
+          {t("wizard.signaling.label")} <span style={styles.req}>*</span>
+        </span>
         <input
           value={signalingUrl}
           onChange={(e) => setSignalingUrl(e.target.value)}
-          placeholder="https://freeremotedesk-signaling.your-name.workers.dev"
+          placeholder={t("wizard.signaling.placeholder")}
           autoFocus
           spellCheck={false}
           autoCapitalize="off"
           autoCorrect="off"
           style={styles.input}
         />
-        <span style={styles.hint}>
-          Your Cloudflare Workers URL. Get it from the Workers dashboard after
-          deploying the signaling package.
-        </span>
+        <span style={styles.hint}>{t("wizard.signaling.hint")}</span>
       </label>
 
       <label style={styles.label}>
-        <span>PWA URL <span style={styles.opt}>(optional)</span></span>
+        <span>
+          {t("wizard.pwa.label")}{" "}
+          <span style={styles.opt}>{t("wizard.pwa.optional")}</span>
+        </span>
         <input
           value={pwaUrl}
           onChange={(e) => setPwaUrl(e.target.value)}
-          placeholder="https://myremotedesk.vercel.app"
+          placeholder={t("wizard.pwa.placeholder")}
           spellCheck={false}
           autoCapitalize="off"
           autoCorrect="off"
           style={styles.input}
         />
-        <span style={styles.hint}>
-          Your Vercel deployment. Shown as a hint on the pairing screen.
-        </span>
+        <span style={styles.hint}>{t("wizard.pwa.hint")}</span>
       </label>
 
       <label style={styles.label}>
-        <span>Pairing code length</span>
+        <span>{t("wizard.codeLen.label")}</span>
         <input
           type="number"
           min={MIN_CODE_LEN}
@@ -132,9 +149,7 @@ export function SetupWizard({ current, onSaved }: Props) {
           style={styles.input}
         />
         <span style={styles.hint}>
-          Characters per generated code ({MIN_CODE_LEN}–{MAX_CODE_LEN}). Longer
-          codes are harder to guess; you only type one per device. A new code is
-          generated for every pairing.
+          {t("wizard.codeLen.hint", { min: MIN_CODE_LEN, max: MAX_CODE_LEN })}
         </span>
       </label>
 
@@ -144,27 +159,24 @@ export function SetupWizard({ current, onSaved }: Props) {
           checked={startOnBoot}
           onChange={(e) => setStartOnBoot(e.target.checked)}
         />
-        <span>Start FreeRemoteDesk when I sign in</span>
+        <span>{t("wizard.autostart")}</span>
       </label>
 
       <button type="submit" disabled={!canSave} style={styles.primary}>
-        {busy ? "Saving…" : "Save and continue"}
+        {busy ? t("wizard.action.saving") : t("wizard.action.save")}
       </button>
 
       {status && <div style={styles.error}>{status}</div>}
 
-      <div style={styles.footer}>
-        Config is stored locally in your OS app-data directory. You can change
-        these anytime from the agent's Settings menu.
-      </div>
+      <div style={styles.footer}>{t("wizard.footer")}</div>
     </form>
   );
 }
 
 function normalizeUrl(u: string): string {
-  const t = u.trim().replace(/\/+$/, "");
-  if (/^(https?|wss?):\/\//.test(t)) return t;
-  return `https://${t}`;
+  const trimmed = u.trim().replace(/\/+$/, "");
+  if (/^(https?|wss?):\/\//.test(trimmed)) return trimmed;
+  return `https://${trimmed}`;
 }
 
 const styles: Record<string, React.CSSProperties> = {
@@ -178,6 +190,12 @@ const styles: Record<string, React.CSSProperties> = {
     background: "#171717",
     border: "1px solid #2a2a2a",
     borderRadius: 12,
+  },
+  header: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: "1rem",
   },
   help: { opacity: 0.7, fontSize: "0.9rem", lineHeight: 1.5 },
   label: { display: "flex", flexDirection: "column", gap: "0.4rem", fontSize: "0.9rem" },

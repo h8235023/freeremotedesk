@@ -1,5 +1,7 @@
 # Wire Protocol
 
+> **English** · [简体中文](PROTOCOL.zh-CN.md)
+
 ## Signaling messages (JSON over WebSocket)
 
 All messages are JSON envelopes: `{ "t": "<type>", ...fields }`.

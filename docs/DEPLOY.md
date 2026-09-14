@@ -1,5 +1,7 @@
 # Deploy your own FreeRemoteDesk
 
+> **English** · [简体中文](DEPLOY.zh-CN.md)
+
 FreeRemoteDesk is BYO-infrastructure: you deploy the signaling Worker and the PWA to your own free-tier Cloudflare + Vercel accounts. Nobody else (including the project maintainers) has access to your instance.
 
 Total cost: **$0/month.** Total setup time: **~10 minutes** first time, none after that.

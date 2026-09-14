@@ -1,3 +1,4 @@
+import { t, useI18n } from "../i18n";
 import { forgetHost, type SavedHost } from "../savedHosts";
 
 type Props = {
@@ -7,34 +8,36 @@ type Props = {
 };
 
 export function SavedHostsList({ hosts, onConnect, onRefresh }: Props) {
+  useI18n(); // re-render on language change
+
   if (hosts.length === 0) return null;
 
   return (
     <div style={styles.wrap}>
-      <div style={styles.title}>Your paired hosts</div>
+      <div style={styles.title}>{t("savedHosts.title")}</div>
       {hosts.map((h) => (
         <div key={h.hostId} style={styles.row}>
           <button
             style={styles.connect}
             onClick={() => onConnect(h)}
-            title={`Reconnect to ${h.hostName}`}
+            title={t("savedHosts.reconnectTo", { name: h.hostName })}
           >
             <span style={styles.hostName}>{h.hostName}</span>
             <span style={styles.lastSeen}>
               {h.lastConnectedAt
-                ? `last used ${formatAge(h.lastConnectedAt)}`
-                : "not yet connected"}
+                ? t("savedHosts.lastUsed", { age: formatAge(h.lastConnectedAt) })
+                : t("savedHosts.notConnected")}
             </span>
           </button>
           <button
             style={styles.forget}
             onClick={() => {
-              if (confirm(`Forget "${h.hostName}"? You'll need to pair again with a code.`)) {
+              if (confirm(t("savedHosts.forgetConfirm", { name: h.hostName }))) {
                 forgetHost(h.hostId);
                 onRefresh();
               }
             }}
-            title="Forget this host"
+            title={t("savedHosts.forgetTitle")}
           >
             ✕
           </button>
@@ -46,10 +49,10 @@ export function SavedHostsList({ hosts, onConnect, onRefresh }: Props) {
 
 function formatAge(ts: number): string {
   const s = Math.floor((Date.now() - ts) / 1000);
-  if (s < 60) return "just now";
-  if (s < 3600) return `${Math.floor(s / 60)}m ago`;
-  if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
-  return `${Math.floor(s / 86400)}d ago`;
+  if (s < 60) return t("savedHosts.age.now");
+  if (s < 3600) return t("savedHosts.age.minutes", { n: Math.floor(s / 60) });
+  if (s < 86400) return t("savedHosts.age.hours", { n: Math.floor(s / 3600) });
+  return t("savedHosts.age.days", { n: Math.floor(s / 86400) });
 }
 
 const styles: Record<string, React.CSSProperties> = {
