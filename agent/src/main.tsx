@@ -285,11 +285,28 @@ function App() {
       await pair.connect();
 
       pair.on("onInput", onRemoteInput);
+      // Pair mode used to skip this, so `sessionState` stayed empty for the
+      // whole pairing and the window showed no connection progress at all.
+      pair.on("onStateChange", (s) =>
+        setState((prev) =>
+          prev.kind === "listening" ? { ...prev, sessionState: s } : prev,
+        ),
+      );
+      // The host persists the new trusted client during pair.save; surface it in
+      // the list right away instead of waiting for the pair session to close.
+      pair.on("onTrustedClientAdded", async () => {
+        const trusted = await refreshTrusted();
+        setState((prev) =>
+          prev.kind === "listening" ? { ...prev, trusted } : prev,
+        );
+      });
       pair.on("onClose", async () => {
         pairPeerRef.current = null;
         const trusted = await refreshTrusted();
         setState((prev) =>
-          prev.kind === "listening" ? { ...prev, pairCode: null, trusted } : prev,
+          prev.kind === "listening"
+            ? { ...prev, pairCode: null, sessionState: null, trusted }
+            : prev,
         );
       });
       pair.on("onError", (err) =>

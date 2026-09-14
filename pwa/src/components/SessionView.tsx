@@ -36,22 +36,29 @@ export function SessionView({ client, onExit }: Props) {
     }
   }, []);
 
-  // Wire the WebRTC events.
+  // Wire the WebRTC events. This effect deliberately does NOT own the client's
+  // lifetime: re-running it is harmless because `PeerClient.on` just overwrites
+  // the handler slot, whereas closing the client in its cleanup would tear down
+  // a live session every time the parent re-renders with a new `onExit`.
   useEffect(() => {
-    client.on("onTrack", (stream) => {
-      const v = videoRef.current;
-      if (v) v.srcObject = stream;
-    });
-    client.on("onDataChannel", (label, channel) => {
-      if (label === "input") inputChannelRef.current = channel;
-    });
-    client.on("onStateChange", (s) => setState(s));
-    client.on("onClose", () => onExit());
-
-    return () => {
-      client.close();
-    };
+    const offs = [
+      client.on("onTrack", (stream) => {
+        const v = videoRef.current;
+        if (v) v.srcObject = stream;
+      }),
+      client.on("onDataChannel", (label, channel) => {
+        if (label === "input") inputChannelRef.current = channel;
+      }),
+      client.on("onStateChange", (s) => setState(s)),
+      client.on("onClose", () => onExit()),
+    ];
+    // `on` appends rather than replaces, so this cleanup is what keeps a
+    // re-run from stacking duplicate handlers.
+    return () => offs.forEach((off) => off());
   }, [client, onExit]);
+
+  // The client lives exactly as long as this component is mounted — nothing else.
+  useEffect(() => () => client.close(), [client]);
 
   // Attach the appropriate input handler once we have the container.
   useEffect(() => {

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { ConnectView } from "./components/ConnectView";
 import { SavePrompt } from "./components/SavePrompt";
 import { SessionView } from "./components/SessionView";
@@ -27,6 +27,14 @@ function initialState(): AppState {
 export default function App() {
   const [state, setState] = useState<AppState>(initialState);
 
+  // Must be referentially stable. SessionView keys an effect on this callback,
+  // so a fresh identity on every render would tear down the live WebRTC client
+  // — including on the re-render caused by dismissing the save prompt.
+  const exitSession = useCallback(() => {
+    const url = getSignalingUrl();
+    setState(url ? { kind: "connect", signalingUrl: url } : { kind: "setup" });
+  }, []);
+
   // Handle browser back/forward so /connect vs / stays in sync with state.
   useEffect(() => {
     const onPop = () => setState(initialState());
@@ -50,13 +58,7 @@ export default function App() {
     const showSavePrompt = state.mode === "pair" && !state.savePromptDismissed;
     return (
       <>
-        <SessionView
-          client={state.client}
-          onExit={() => {
-            const url = getSignalingUrl();
-            setState(url ? { kind: "connect", signalingUrl: url } : { kind: "setup" });
-          }}
-        />
+        <SessionView client={state.client} onExit={exitSession} />
         {showSavePrompt && (
           <SavePrompt
             client={state.client}

@@ -96,6 +96,10 @@ export const zhCN: Record<MessageKey, string> = {
   "save.title": "保存此主机？",
   "save.help":
     "下次打开 PWA 时，这台主机会出现在列表里 —— 点一下即可重连，无需配对码。",
+  "save.wait.connecting":
+    "正在连接主机…（ICE：{state}）。控制通道就绪后「保存」才会解锁。",
+  "save.wait.failed":
+    "无法连接到主机（ICE：{state}）。如果用手机，这通常是 NAT 穿透失败 —— 换个网络试试，或关掉 VPN / Zero Trust 客户端。",
   "save.deviceName": "设备名称（方便你自己辨认）",
   "save.deviceNamePlaceholder": "例如：我的 iPhone",
   "save.action.save": "保存",

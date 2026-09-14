@@ -43,6 +43,8 @@ export type HostPeerEvents = {
   onSessionEnded: () => void;
   /** Persistent mode: an incoming client authed. Parent should acceptIncoming(). */
   onIncomingAuth: (clientId: string) => void;
+  /** A `pair.save` was accepted and the client is now in the trusted list. */
+  onTrustedClientAdded: (name: string) => void;
 };
 
 export type HostPeerMode = "pair" | "persistent";
@@ -266,6 +268,9 @@ export class HostPeer {
         hostId: this.opts.hostId,
         hostName: this.opts.hostName,
       });
+      // The config on disk just changed; let the window re-read the list rather
+      // than waiting for the pair session to close.
+      this.handlers.onTrustedClientAdded?.(msg.deviceName);
     } catch (err) {
       this.sendControl({
         t: "pair.save.fail",

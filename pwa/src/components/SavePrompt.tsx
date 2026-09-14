@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { t, useI18n } from "../i18n";
 import { rich } from "../i18n/rich";
 import {
@@ -34,25 +34,49 @@ export function SavePrompt({ client, onSaved, onDismiss }: Props) {
   const [phase, setPhase] = useState<Phase>({ kind: "form" });
   const [urlCopied, setUrlCopied] = useState(false);
 
+  // This modal is shown as soon as pairing *starts*, which on a phone can be
+  // seconds before ICE finishes and the host's "control" DataChannel opens.
+  // Sending into that gap is what produced the "control channel not open yet"
+  // error, so gate on readiness instead of letting the user discover it.
+  const [controlOpen, setControlOpen] = useState(() => client.isControlOpen());
+  const [iceState, setIceState] = useState<string>("new");
+
+  useEffect(() => {
+    setControlOpen(client.isControlOpen());
+    const offOpen = client.on("onControlOpen", () => setControlOpen(true));
+    const offState = client.on("onStateChange", (s) => setIceState(s));
+    return () => {
+      offOpen();
+      offState();
+    };
+  }, [client]);
+
+  const connectionFailed =
+    iceState === "failed" || iceState === "disconnected" || iceState === "closed";
+
   async function save() {
-    if (!deviceName.trim()) return;
+    if (!deviceName.trim() || !controlOpen) return;
     setPhase({ kind: "saving" });
 
     const clientId = generateClientId();
     const secret = generateSecret();
 
+    // Both of these are torn down on every exit path — the early `!sent`
+    // return used to leak the listener and leave a timer running.
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let offControl: (() => void) | undefined;
+
     const responsePromise = new Promise<
       { ok: true; hostId: string; hostName: string } | { ok: false; reason: string }
     >((resolve) => {
-      const handler = (msg: ControlMessage) => {
+      offControl = client.on("onControlMessage", (msg: ControlMessage) => {
         if (msg.t === "pair.save.ok") {
           resolve({ ok: true, hostId: msg.hostId, hostName: msg.hostName });
         } else if (msg.t === "pair.save.fail") {
           resolve({ ok: false, reason: msg.reason ?? t("save.error.rejected") });
         }
-      };
-      client.on("onControlMessage", handler);
-      setTimeout(
+      });
+      timer = setTimeout(
         () => resolve({ ok: false, reason: t("save.error.timeout") }),
         5000,
       );
@@ -65,11 +89,15 @@ export function SavePrompt({ client, onSaved, onDismiss }: Props) {
       secret,
     });
     if (!sent) {
+      if (timer) clearTimeout(timer);
+      offControl?.();
       setPhase({ kind: "error", reason: t("save.error.controlChannel") });
       return;
     }
 
     const res = await responsePromise;
+    if (timer) clearTimeout(timer);
+    offControl?.();
     if (!res.ok) {
       setPhase({ kind: "error", reason: res.reason });
       return;
@@ -103,6 +131,13 @@ export function SavePrompt({ client, onSaved, onDismiss }: Props) {
           <>
             <div style={styles.title}>{t("save.title")}</div>
             <div style={styles.help}>{t("save.help")}</div>
+            {!controlOpen && (
+              <div style={{ ...styles.hint, color: connectionFailed ? "#fca5a5" : undefined }}>
+                {connectionFailed
+                  ? t("save.wait.failed", { state: iceState })
+                  : t("save.wait.connecting", { state: iceState })}
+              </div>
+            )}
             <label style={styles.label}>
               <span style={styles.hint}>{t("save.deviceName")}</span>
               <input
@@ -113,11 +148,15 @@ export function SavePrompt({ client, onSaved, onDismiss }: Props) {
                 autoFocus
               />
             </label>
-            <div style={{ display: "flex", gap: "0.5rem" }}>
+            <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
               <button
                 onClick={save}
-                disabled={!deviceName.trim()}
-                style={{ ...styles.btn, ...styles.primary }}
+                disabled={!deviceName.trim() || !controlOpen}
+                style={{
+                  ...styles.btn,
+                  ...styles.primary,
+                  ...(deviceName.trim() && controlOpen ? null : styles.btnDisabled),
+                }}
               >
                 {t("save.action.save")}
               </button>
@@ -215,6 +254,9 @@ const styles: Record<string, React.CSSProperties> = {
   primary: {
     background: "#4ade80", color: "#000",
     borderColor: "#4ade80", fontWeight: 600,
+  },
+  btnDisabled: {
+    opacity: 0.45, cursor: "not-allowed",
   },
   urlBox: {
     display: "flex", gap: "0.4rem", alignItems: "stretch",

@@ -94,6 +94,10 @@ export const en = {
   "save.title": "Save this host?",
   "save.help":
     "Next time you open the PWA, this host shows up in a list — one tap to reconnect, no code needed.",
+  "save.wait.connecting":
+    "Connecting to the host… (ICE: {state}). Saving unlocks once the control channel is open.",
+  "save.wait.failed":
+    "Could not reach the host (ICE: {state}). If you are on a phone, this is usually NAT traversal failing — try a different network, or turn off any VPN / Zero Trust client.",
   "save.deviceName": "Device name (for your reference)",
   "save.deviceNamePlaceholder": "e.g. My iPhone",
   "save.action.save": "Save",

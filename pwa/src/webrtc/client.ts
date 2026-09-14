@@ -34,6 +34,8 @@ export type PeerClientEvents = {
   onTrack: (stream: MediaStream) => void;
   onDataChannel: (label: string, channel: RTCDataChannel) => void;
   onControlMessage: (msg: ControlMessage) => void;
+  /** Fires once the host's "control" DataChannel is open and can carry sends. */
+  onControlOpen: () => void;
   onStateChange: (state: RTCIceConnectionState) => void;
   onClose: (reason?: string) => void;
   onError: (err: Error) => void;
@@ -53,7 +55,13 @@ export class PeerClient {
   private pc: RTCPeerConnection;
   private ws: WebSocket | null = null;
   private controlChannel: RTCDataChannel | null = null;
-  private handlers: Partial<PeerClientEvents> = {};
+  /**
+   * Listeners per event. Deliberately a list rather than a single slot: two
+   * components subscribe to the same event at once (SessionView and SavePrompt
+   * both need `onStateChange`), and a single slot would let whichever mounted
+   * last silently starve the other.
+   */
+  private listeners: { [E in keyof PeerClientEvents]?: Array<PeerClientEvents[E]> } = {};
   private remoteStream: MediaStream | null = null;
   private closed = false;
 
@@ -67,7 +75,7 @@ export class PeerClient {
     this.pc.addEventListener("track", (evt) => {
       if (!this.remoteStream) {
         this.remoteStream = new MediaStream();
-        this.handlers.onTrack?.(this.remoteStream);
+        this.emit("onTrack", this.remoteStream);
       }
       this.remoteStream.addTrack(evt.track);
     });
@@ -78,10 +86,15 @@ export class PeerClient {
         this.controlChannel = ch;
         ch.addEventListener("message", (mEvt) => {
           const msg = decodeControl(typeof mEvt.data === "string" ? mEvt.data : "");
-          if (msg) this.handlers.onControlMessage?.(msg);
+          if (msg) this.emit("onControlMessage", msg);
         });
+        // The channel is announced well before it can carry anything. Anything
+        // that needs to *send* has to wait for open, so surface the transition
+        // instead of leaving callers to discover it via `sendControl`'s false.
+        if (ch.readyState === "open") this.emit("onControlOpen");
+        else ch.addEventListener("open", () => this.emit("onControlOpen"));
       }
-      this.handlers.onDataChannel?.(ch.label, ch);
+      this.emit("onDataChannel", ch.label, ch);
     });
 
     this.pc.addEventListener("icecandidate", (evt) => {
@@ -89,15 +102,35 @@ export class PeerClient {
     });
 
     this.pc.addEventListener("iceconnectionstatechange", () => {
-      this.handlers.onStateChange?.(this.pc.iceConnectionState);
+      this.emit("onStateChange", this.pc.iceConnectionState);
       if (["failed", "closed"].includes(this.pc.iceConnectionState)) {
-        this.handlers.onClose?.(this.pc.iceConnectionState);
+        this.emit("onClose", this.pc.iceConnectionState);
       }
     });
   }
 
-  on<E extends keyof PeerClientEvents>(event: E, handler: PeerClientEvents[E]) {
-    this.handlers[event] = handler;
+  /** Subscribe to an event. Returns an unsubscribe function. */
+  on<E extends keyof PeerClientEvents>(event: E, handler: PeerClientEvents[E]): () => void {
+    const list: Array<PeerClientEvents[E]> = this.listeners[event] ?? [];
+    list.push(handler);
+    // The mapped type can't express "the array stored under exactly this key",
+    // so the write goes through a wider view. The signature above is what
+    // actually pairs an event name with its handler type.
+    (this.listeners as Record<string, Array<PeerClientEvents[E]>>)[event as string] = list;
+    return () => {
+      const i = list.indexOf(handler);
+      if (i >= 0) list.splice(i, 1);
+    };
+  }
+
+  private emit<E extends keyof PeerClientEvents>(
+    event: E,
+    ...args: Parameters<PeerClientEvents[E]>
+  ) {
+    const list = this.listeners[event] as unknown as
+      | Array<(...a: Parameters<PeerClientEvents[E]>) => void>
+      | undefined;
+    list?.forEach((h) => h(...args));
   }
 
   async connect(): Promise<void> {
@@ -125,8 +158,17 @@ export class PeerClient {
     });
 
     ws.addEventListener("close", () => {
-      if (!this.closed) this.handlers.onClose?.("signaling ws closed");
+      if (!this.closed) this.emit("onClose", "signaling ws closed");
     });
+  }
+
+  /**
+   * True once the host's "control" DataChannel is open. Callers that mount after
+   * the connection is already up need this, since `onControlOpen` has by then
+   * already fired.
+   */
+  isControlOpen(): boolean {
+    return this.controlChannel?.readyState === "open";
   }
 
   /** Send a control-channel message (e.g., pair.save). Requires control channel to be open. */
@@ -158,12 +200,12 @@ export class PeerClient {
           break;
 
         case "auth.ok":
-          this.handlers.onAuthResult?.(true);
+          this.emit("onAuthResult", true);
           break;
 
         case "auth.fail":
-          this.handlers.onAuthResult?.(false, msg.reason);
-          this.handlers.onError?.(new Error(msg.reason ?? "authentication failed"));
+          this.emit("onAuthResult", false, msg.reason);
+          this.emit("onError", new Error(msg.reason ?? "authentication failed"));
           this.close();
           break;
 
@@ -186,12 +228,12 @@ export class PeerClient {
           break;
 
         case "peer-gone":
-          this.handlers.onClose?.("host left");
+          this.emit("onClose", "host left");
           this.close();
           break;
       }
     } catch (err) {
-      this.handlers.onError?.(err instanceof Error ? err : new Error(String(err)));
+      this.emit("onError", err instanceof Error ? err : new Error(String(err)));
     }
   }
 
