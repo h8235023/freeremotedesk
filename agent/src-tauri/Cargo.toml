@@ -26,6 +26,9 @@ rand = "0.8"
 thiserror = "1"
 getrandom = "0.2"
 sha2 = "0.10"
+# Transferred files arrive as base64 in the WebView's IPC JSON. See the note in
+# `file.rs` on why this is base64 rather than Tauri's raw octet-stream path.
+base64 = "0.22"
 
 # Input injection: mouse + keyboard synthesis at OS level.
 # Cross-platform: Windows (SendInput), macOS (CGEvent), Linux (evdev/uinput/xdo).

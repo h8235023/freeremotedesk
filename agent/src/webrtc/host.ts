@@ -25,8 +25,10 @@ import {
   encodeControl,
   type ControlMessage,
   type InputEvent,
+  type PeerKind,
   type SignalMessage,
 } from "../protocol";
+import { FileTransfer, type TransferDone, type TransferProgress } from "./files";
 
 const DEFAULT_ICE_SERVERS: RTCIceServer[] = [
   { urls: "stun:stun.l.google.com:19302" },
@@ -45,6 +47,12 @@ export type HostPeerEvents = {
   onIncomingAuth: (clientId: string) => void;
   /** A `pair.save` was accepted and the client is now in the trusted list. */
   onTrustedClientAdded: (name: string) => void;
+  /** The dedicated file-transfer channel is open and usable. */
+  onFilesOpen: () => void;
+  onFileIncoming: (name: string, size: number) => void;
+  onFileProgress: (p: TransferProgress) => void;
+  onFileDone: (d: TransferDone) => void;
+  onFileError: (reason: string, detail?: string) => void;
 };
 
 export type HostPeerMode = "pair" | "persistent";
@@ -69,15 +77,59 @@ export class HostPeer {
   readonly opts: HostPeerOptions;
   private ws: WebSocket | null = null;
   private pc: RTCPeerConnection | null = null;
+  /**
+   * A second peer connection carrying only file transfer. Kept separate so a
+   * large transfer can't starve the screen stream — under `max-bundle` the media
+   * channels would otherwise share one transport and one congestion controller.
+   */
+  private filesPc: RTCPeerConnection | null = null;
   private stream: MediaStream | null = null;
   private inputChannel: RTCDataChannel | null = null;
   private controlChannel: RTCDataChannel | null = null;
+  private filesChannel: RTCDataChannel | null = null;
   private handlers: Partial<HostPeerEvents> = {};
   private authedClientId: string | null = null;
   private closed = false;
+  // Handlers are read through arrows so `onFiles()` can be called at any time.
+  private files = new FileTransfer(() => this.filesChannel, {
+    onIncoming: (name, size) => this.filesHandlers.onIncoming?.(name, size),
+    onProgress: (p) => this.filesHandlers.onProgress?.(p),
+    onDone: (d) => this.filesHandlers.onDone?.(d),
+    onError: (reason, detail) => this.filesHandlers.onError?.(reason, detail),
+  });
 
   constructor(opts: HostPeerOptions) {
     this.opts = opts;
+  }
+
+  /** Wire the file-transfer callbacks. Kept separate from `on()` so the UI can
+   *  pass a single object instead of five separate registrations. */
+  onFiles(handlers: {
+    onOpen?: () => void;
+    onIncoming?: (name: string, size: number) => void;
+    onProgress?: (p: TransferProgress) => void;
+    onDone?: (d: TransferDone) => void;
+    onError?: (reason: string, detail?: string) => void;
+  }): void {
+    this.filesHandlers = handlers;
+  }
+
+  private filesHandlers: {
+    onOpen?: () => void;
+    onIncoming?: (name: string, size: number) => void;
+    onProgress?: (p: TransferProgress) => void;
+    onDone?: (d: TransferDone) => void;
+    onError?: (reason: string, detail?: string) => void;
+  } = {};
+
+  /** True once the file channel can carry data. */
+  filesReady(): boolean {
+    return this.filesChannel?.readyState === "open";
+  }
+
+  /** Push a file to the connected client. */
+  sendFile(file: File): Promise<void> {
+    return this.files.sendFile(file);
   }
 
   on<E extends keyof HostPeerEvents>(event: E, handler: HostPeerEvents[E]) {
@@ -140,7 +192,8 @@ export class HostPeer {
     await this.captureScreen();          // user gesture required — this is the click
     this.sendSignal({ t: "auth.ok" });
     await this.startWebRtc();
-    await this.sendOffer();
+    await this.sendOffer("media");
+    await this.sendOffer("files");
   }
 
   /** Persistent mode: reject a pending incoming auth (user declined). */
@@ -161,8 +214,11 @@ export class HostPeer {
         case "ready":
           if (this.opts.mode === "pair") {
             // Pair mode: no auth needed, capture already done, start negotiation.
+            // Media first so the screen appears before the file channel finishes
+            // negotiating — the two offers share one WebSocket.
             await this.startWebRtc();
-            await this.sendOffer();
+            await this.sendOffer("media");
+            await this.sendOffer("files");
           }
           // Persistent mode: wait for auth message from the client.
           break;
@@ -185,17 +241,21 @@ export class HostPeer {
           }
           break;
 
-        case "sdp":
-          if (!this.pc) return;
+        case "sdp": {
+          const pc = this.pcFor(msg.pc);
+          if (!pc) return;
           if (msg.kind !== "answer") return;
-          await this.pc.setRemoteDescription({ type: "answer", sdp: msg.sdp });
+          await pc.setRemoteDescription({ type: "answer", sdp: msg.sdp });
           break;
+        }
 
-        case "ice":
-          if (!this.pc || !msg.candidate) return;
-          try { await this.pc.addIceCandidate(msg.candidate); }
+        case "ice": {
+          const pc = this.pcFor(msg.pc);
+          if (!pc || !msg.candidate) return;
+          try { await pc.addIceCandidate(msg.candidate); }
           catch (e) { console.warn("addIceCandidate failed", e); }
           break;
+        }
 
         case "peer-gone":
           this.teardownSession("client left");
@@ -234,7 +294,11 @@ export class HostPeer {
     });
 
     this.pc.addEventListener("icecandidate", (evt) => {
-      this.sendSignal({ t: "ice", candidate: evt.candidate ? evt.candidate.toJSON() : null });
+      this.sendSignal({
+        t: "ice",
+        pc: "media",
+        candidate: evt.candidate ? evt.candidate.toJSON() : null,
+      });
     });
     this.pc.addEventListener("iceconnectionstatechange", () => {
       const s = this.pc?.iceConnectionState;
@@ -246,13 +310,51 @@ export class HostPeer {
     for (const track of this.stream.getTracks()) {
       this.pc.addTrack(track, this.stream);
     }
+
+    this.startFilesPeer();
   }
 
-  private async sendOffer(): Promise<void> {
-    if (!this.pc) return;
-    const offer = await this.pc.createOffer();
-    await this.pc.setLocalDescription(offer);
-    if (offer.sdp) this.sendSignal({ t: "sdp", kind: "offer", sdp: offer.sdp });
+  /**
+   * Data-only peer connection for file transfer. No tracks, so nothing here can
+   * contend with the captured screen for the media connection's bandwidth.
+   */
+  private startFilesPeer(): void {
+    this.files.reset();
+    this.filesPc = new RTCPeerConnection({
+      iceServers: DEFAULT_ICE_SERVERS,
+      bundlePolicy: "max-bundle",
+    });
+
+    this.filesChannel = this.filesPc.createDataChannel("files", { ordered: true });
+    // Default is "blob", which would force an async copy per chunk.
+    this.filesChannel.binaryType = "arraybuffer";
+    this.filesChannel.addEventListener("message", (evt) => {
+      if (typeof evt.data === "string") {
+        this.files.handleText(evt.data);
+      } else if (evt.data instanceof ArrayBuffer) {
+        this.files.handleBinary(evt.data);
+      }
+    });
+    this.filesChannel.addEventListener("open", () => this.filesHandlers.onOpen?.());
+    this.filesChannel.addEventListener("close", () =>
+      this.files.abort("interrupted"),
+    );
+
+    this.filesPc.addEventListener("icecandidate", (evt) => {
+      this.sendSignal({
+        t: "ice",
+        pc: "files",
+        candidate: evt.candidate ? evt.candidate.toJSON() : null,
+      });
+    });
+  }
+
+  private async sendOffer(kind: PeerKind): Promise<void> {
+    const pc = this.pcFor(kind);
+    if (!pc) return;
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
+    if (offer.sdp) this.sendSignal({ t: "sdp", pc: kind, kind: "offer", sdp: offer.sdp });
   }
 
   private async onControl(msg: ControlMessage): Promise<void> {
@@ -279,6 +381,11 @@ export class HostPeer {
     }
   }
 
+  /** Which peer connection a negotiation message belongs to. */
+  private pcFor(kind?: PeerKind): RTCPeerConnection | null {
+    return kind === "files" ? this.filesPc : this.pc;
+  }
+
   private sendSignal(msg: SignalMessage) {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
     this.ws.send(encode(msg));
@@ -291,12 +398,18 @@ export class HostPeer {
   }
 
   private teardownSession(_reason: string) {
+    // Tell the Rust side to drop any half-written file before the channel goes.
+    this.files.abort("interrupted");
     try { this.inputChannel?.close(); } catch { /* ignore */ }
     try { this.controlChannel?.close(); } catch { /* ignore */ }
+    try { this.filesChannel?.close(); } catch { /* ignore */ }
     try { this.pc?.close(); } catch { /* ignore */ }
+    try { this.filesPc?.close(); } catch { /* ignore */ }
     this.inputChannel = null;
     this.controlChannel = null;
+    this.filesChannel = null;
     this.pc = null;
+    this.filesPc = null;
     this.authedClientId = null;
   }
 

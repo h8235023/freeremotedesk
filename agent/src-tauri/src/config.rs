@@ -63,6 +63,13 @@ pub struct AgentConfig {
     #[serde(default)]
     pub language: Option<String>,
 
+    /// Largest single file a client may send, in bytes. `None` falls back to
+    /// [`crate::file::DEFAULT_MAX_TRANSFER_BYTES`]. Enforced in Rust, which is
+    /// authoritative — the PWA pre-checks against its own copy only so the user
+    /// gets an instant answer instead of a rejection mid-transfer.
+    #[serde(default)]
+    pub max_transfer_bytes: Option<u64>,
+
     /// Trusted clients keyed by their opaque client-id. Only the hash of the
     /// shared secret is stored — never the raw value.
     #[serde(default)]
@@ -99,6 +106,19 @@ pub fn pairing_code_len(app: &AppHandle) -> Result<usize, String> {
         .unwrap_or(crate::pairing::DEFAULT_CODE_LEN))
 }
 
+/// The configured per-file transfer ceiling, falling back to the built-in
+/// default. Clamped up to a floor so a hand-edited config can't disable
+/// transfers entirely, and down to a ceiling so it can't overflow the counters.
+pub fn max_transfer_bytes(app: &AppHandle) -> u64 {
+    let saved = config_path(app)
+        .ok()
+        .map(|path| load_from_disk(&path).max_transfer_bytes)
+        .flatten();
+    saved
+        .map(crate::file::clamp_max_transfer_bytes)
+        .unwrap_or(crate::file::DEFAULT_MAX_TRANSFER_BYTES)
+}
+
 /// The saved UI language, falling back to [`DEFAULT_LANGUAGE`] when unset or
 /// unrecognised. Used by the tray menu and by Rust-side fallback strings, which
 /// can't reach the WebView's i18n module.
@@ -119,7 +139,8 @@ fn ensure_agent_id(cfg: &mut AgentConfig) {
     }
 }
 
-fn uuid_hex() -> String {
+/// Reused by `file.rs` to name the `.part` file for an in-flight transfer.
+pub(crate) fn uuid_hex() -> String {
     let mut buf = [0u8; 16];
     getrandom::getrandom(&mut buf).expect("OS RNG failed");
     buf.iter().map(|b| format!("{:02x}", b)).collect()
@@ -179,6 +200,9 @@ pub fn set_config(app: AppHandle, config: AgentConfig) -> Result<AgentConfig, St
     // able to talk us into generating a trivially guessable code.
     if let Some(len) = cfg.pairing_code_len {
         cfg.pairing_code_len = Some(crate::pairing::clamp_code_len(len));
+    }
+    if let Some(n) = cfg.max_transfer_bytes {
+        cfg.max_transfer_bytes = Some(crate::file::clamp_max_transfer_bytes(n));
     }
     save(&path, &cfg)?;
     Ok(cfg)

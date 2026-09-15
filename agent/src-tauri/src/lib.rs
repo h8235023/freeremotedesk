@@ -1,6 +1,7 @@
 //! FreeRemoteDesk host agent — library crate.
 
 mod config;
+mod file;
 mod i18n;
 mod input;
 mod pairing;
@@ -22,6 +23,8 @@ pub fn run() {
             #[cfg(desktop)]
             {
                 tray::install(&app.handle())?;
+                // Clean up part files orphaned by a previous crash.
+                file::sweep_stale_parts(&app.handle());
 
                 let args: Vec<String> = std::env::args().collect();
                 if args.iter().any(|a| a == "--minimized") {
@@ -45,6 +48,11 @@ pub fn run() {
             config::store_trusted_client,
             config::verify_trusted_client,
             config::revoke_trusted_client,
+            file::begin_file_receive,
+            file::write_file_chunk,
+            file::end_file_receive,
+            file::abort_file_receive,
+            file::receive_directory,
             focus_window,
         ])
         .run(tauri::generate_context!())

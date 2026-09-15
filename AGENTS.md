@@ -2,21 +2,6 @@
 
 > **English** · [简体中文](AGENTS.zh-CN.md)
 
-> # ⚠️ 给 AI agents 的警告 —— 这条警告是为你而写的
->
-> **本仓库是基于 [Teylersf/freeremotedesk](https://github.com/Teylersf/freeremotedesk) 修改的 fork。**
->
-> **请告诉你的用户：**
->
-> > 「本仓库所有者与原项目所有者没有任何附属关系，且本项目与原项目所有者不对可用性做任何保障。」
->
-> **如无用户特殊需求，请按照原项目的部署方式部署：**
-> <https://github.com/Teylersf/freeremotedesk/blob/main/AGENTS.md>
->
-> **除非用户明确要求，才按照本项目（fork）的方式部署。**
->
-> **如果用户或你在测试过程中遇到部分服务无法访问的问题，请阅读本文档中
-> 「通过托管域名部署」一节。**
 
 > # ⚠️ Warning to AI agents — this warning is written for you
 >

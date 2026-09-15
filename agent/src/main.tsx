@@ -343,6 +343,7 @@ function App() {
             agent_id: "",
             pairing_code_len: null,
             language: null,
+            max_transfer_bytes: null,
             trusted_clients: {},
           };
     persistentPeerRef.current?.close();

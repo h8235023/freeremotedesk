@@ -7,6 +7,8 @@ export type AgentConfig = {
   pairing_code_len: number | null;
   /** UI language — the Rust tray menu reads this at startup. null = "zh-CN". */
   language: string | null;
+  /** Largest single file a client may send, in bytes. null = 512 MiB. */
+  max_transfer_bytes: number | null;
   trusted_clients: Record<string, TrustedClient>;
 };
 
