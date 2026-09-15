@@ -8,6 +8,7 @@ import {
   type InputEvent,
 } from "../webrtc/input";
 import { SessionToolbar } from "./SessionToolbar";
+import { FileTransferPanel } from "./FileTransferPanel";
 
 type Props = { client: PeerClient; onExit: () => void };
 
@@ -25,6 +26,7 @@ export function SessionView({ client, onExit }: Props) {
   const keyboardHandleRef = useRef<ReturnType<typeof attachHiddenKeyboard> | null>(null);
 
   const [state, setState] = useState<string>("connecting");
+  const fullscreenTriedRef = useRef(false);
   const [keyboardOpen, setKeyboardOpen] = useState(false);
   const [isTouch] = useState<boolean>(() => isTouchPrimary());
 
@@ -49,7 +51,18 @@ export function SessionView({ client, onExit }: Props) {
       client.on("onDataChannel", (label, channel) => {
         if (label === "input") inputChannelRef.current = channel;
       }),
-      client.on("onStateChange", (s) => setState(s)),
+      client.on("onStateChange", (s) => {
+        setState(s);
+        // Best-effort auto-fullscreen on the first successful connect. Browsers
+        // only honour requestFullscreen inside a user gesture's transient
+        // activation window, so this rides the Connect click — and iOS Safari
+        // refuses it for arbitrary elements entirely, which is why the toolbar
+        // also carries a fullscreen button.
+        if (s === "connected" && !fullscreenTriedRef.current) {
+          fullscreenTriedRef.current = true;
+          document.documentElement.requestFullscreen?.().catch(() => {});
+        }
+      }),
       client.on("onClose", () => onExit()),
     ];
     // `on` appends rather than replaces, so this cleanup is what keeps a
@@ -131,6 +144,9 @@ export function SessionView({ client, onExit }: Props) {
           {state} {isTouch ? "" : "(ctrl+esc to exit)"}
         </div>
       )}
+
+      {/* Rendered regardless of input type — SessionToolbar is touch-only. */}
+      <FileTransferPanel client={client} />
 
       {isTouch && (
         <SessionToolbar

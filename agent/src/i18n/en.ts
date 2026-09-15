@@ -66,6 +66,26 @@ export const en = {
   "wizard.error.notSignaling":
     "not a FreeRemoteDesk signaling server (got: {body})",
 
+  // ---------- File transfer ----------
+  "file.action.send": "Send a file",
+  "file.status.offered": "The client sent **{name}** ({size})…",
+  "file.status.sending": "Sending **{name}** — {done} / {total}",
+  "file.status.receiving": "Receiving **{name}** — {done} / {total}",
+  "file.status.saved": "Saved **{name}** to {folder}",
+  "file.status.sent": "Sent **{name}**",
+  "file.status.failed": "Transfer failed — {reason}",
+  "file.reason.too_large": "the file is larger than this machine's limit",
+  "file.reason.busy": "another transfer is already running",
+  "file.reason.io": "the file could not be written",
+  "file.reason.cancelled": "the other side cancelled",
+  "file.reason.interrupted": "the connection dropped",
+  "file.reason.incomplete": "fewer bytes arrived than expected",
+  "file.reason.unsupported": "the other side doesn't support file transfer",
+  "file.reason.protocol": "the file channel isn't ready",
+  "file.error.noChannel": "The file channel isn't ready yet.",
+  "file.notification.saved": "{name} received",
+  "file.notification.sent": "{name} sent",
+
   // ---------- Language switch ----------
   "lang.label": "Language",
 } as const;

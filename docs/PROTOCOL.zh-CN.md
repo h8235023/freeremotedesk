@@ -68,7 +68,39 @@ Durable Objects，或浏览器）提供的行为，也可能只是愿景——�
 | `input`（DataChannel，有序+可靠） | 鼠标/键盘事件 | 高 |
 | `control`（DataChannel，有序+可靠） | 光标样式、显示器列表、分辨率变更 | 中 |
 | `clipboard`（DataChannel，有序+可靠） | 剪贴板同步（第 4 阶段及以后） | 低 |
-| `files`（DataChannel，有序+可靠） | 文件传输分片（第 4 阶段及以后） | 低 |
+| `files`（DataChannel，有序+可靠） | 文件传输分片 | 低 |
+
+`files` 通道**不在**与其他通道相同的那条 `RTCPeerConnection` 上，而是跑在第二条纯数据
+连接上 —— 这样大文件传输就不会抢占画面流的带宽。因为在 `max-bundle` 下，媒体各通道共用
+一条传输和一个拥塞控制器，批量数据否则会与视频争抢。两条连接都通过同一条信令 WebSocket
+协商，这就是 `sdp` 和 `ice` 需要带一个 `pc` 字段的原因（缺省即 `"media"`）。信令中继
+逐字转发，无需理解它。
+
+### 文件传输消息（走 `files` 通道）
+
+字符串是控制消息，二进制就是文件字节。通道有序且可靠，所以 `file.eof` 不可能越过它之前
+的字节 —— 因此**没有长度前缀，也没有序号**。完整性由声明的文件大小，加上主机边写盘边计算
+的 SHA-256 来保证。
+
+| `t` | 字段 | 方向 |
+|---|---|---|
+| `file.offer` | `{ name, size, mime? }` | 发送方 → 接收方 |
+| `file.accept` | `{ name }` —— 净化并去重后实际使用的文件名 | 接收方 → 发送方 |
+| `file.reject` | `{ reason, detail? }` | 接收方 → 发送方 |
+| `file.eof` | `{}` | 发送方 → 接收方 |
+| `file.done` | `{ name, path, bytes, sha256 }` | 接收方 → 发送方 |
+| `file.fail` | `{ reason, detail? }` | 双向 |
+| `file.cancel` | `{}` | 双向 |
+
+`reason` 一律是短错误码（`too_large`、`busy`、`io`、`cancelled`、`interrupted`、
+`incomplete`、`unsupported`、`protocol`），便于对端翻译；`detail` 是未翻译的诊断文本。
+
+分片固定 **16 KiB**，不做协商 —— 这是最坏情况（Safari 的 256 KiB）的四分之一。发送侧按
+`bufferedAmount` 门控（高水位 4 MiB，低水位 1 MiB），接收侧串行写入，因此无论文件多大，
+在途内存都是有界的。
+
+主机收到的文件落在 `下载/FreeRemoteDesk/`，先写入 `.frd-part-*` 临时文件，`fsync` 之后
+才改名到位 —— 所以传输中断绝不会留下一个看起来完整、实际被截断的文件。
 
 ## 输入事件 schema（DataChannel）
 

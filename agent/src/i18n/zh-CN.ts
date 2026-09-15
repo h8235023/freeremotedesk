@@ -67,6 +67,26 @@ export const zhCN: Record<MessageKey, string> = {
   "wizard.error.saveFailed": "保存失败：{reason}",
   "wizard.error.notSignaling": "这不是一个 FreeRemoteDesk 信令服务器（返回：{body}）",
 
+  // ---------- 文件传输 ----------
+  "file.action.send": "发送文件",
+  "file.status.offered": "客户端正在发送 **{name}**（{size}）…",
+  "file.status.sending": "正在发送 **{name}** —— {done} / {total}",
+  "file.status.receiving": "正在接收 **{name}** —— {done} / {total}",
+  "file.status.saved": "**{name}** 已保存到 {folder}",
+  "file.status.sent": "**{name}** 已发送",
+  "file.status.failed": "传输失败 —— {reason}",
+  "file.reason.too_large": "文件超过本机设置的上限",
+  "file.reason.busy": "已有另一个传输在进行中",
+  "file.reason.io": "文件写入失败",
+  "file.reason.cancelled": "对方取消了传输",
+  "file.reason.interrupted": "连接中断",
+  "file.reason.incomplete": "收到的字节数少于预期",
+  "file.reason.unsupported": "对方不支持文件传输",
+  "file.reason.protocol": "文件通道尚未就绪",
+  "file.error.noChannel": "文件通道尚未就绪。",
+  "file.notification.saved": "已接收 {name}",
+  "file.notification.sent": "已发送 {name}",
+
   // ---------- 语言切换 ----------
   "lang.label": "语言",
 };

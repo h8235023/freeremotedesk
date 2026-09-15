@@ -74,7 +74,45 @@ codes.
 | `input` (DataChannel, ordered+reliable) | Mouse/keyboard events | high |
 | `control` (DataChannel, ordered+reliable) | Cursor style, monitor list, resize | medium |
 | `clipboard` (DataChannel, ordered+reliable) | Clipboard sync (phase 4+) | low |
-| `files` (DataChannel, ordered+reliable) | File transfer chunks (phase 4+) | low |
+| `files` (DataChannel, ordered+reliable) | File transfer chunks | low |
+
+The `files` channel is **not** on the same `RTCPeerConnection` as the others. It
+runs on a second, data-only connection so a large transfer cannot starve the
+screen stream — under `max-bundle` the media channels share one transport and one
+congestion controller, and bulk data would otherwise compete with video for it.
+Both connections are negotiated over the one signaling WebSocket, which is why
+`sdp` and `ice` carry a `pc` field (`"media"` when absent). The relay forwards
+them verbatim and never needs to understand it.
+
+### File transfer messages (on the `files` channel)
+
+A JSON string is a control message; anything binary is file bytes. The channel is
+ordered and reliable, so `file.eof` can never overtake the bytes before it —
+there are no length prefixes and no sequence numbers. Integrity rests on the
+declared size plus the SHA-256 the host computes while streaming to disk.
+
+| `t` | Fields | Direction |
+|---|---|---|
+| `file.offer` | `{ name, size, mime? }` | sender → receiver |
+| `file.accept` | `{ name }` — the sanitized, de-collided name it will actually use | receiver → sender |
+| `file.reject` | `{ reason, detail? }` | receiver → sender |
+| `file.eof` | `{}` | sender → receiver |
+| `file.done` | `{ name, path, bytes, sha256 }` | receiver → sender |
+| `file.fail` | `{ reason, detail? }` | either |
+| `file.cancel` | `{}` | either |
+
+`reason` is always a short code (`too_large`, `busy`, `io`, `cancelled`,
+`interrupted`, `incomplete`, `unsupported`, `protocol`) so the far end can
+translate it; `detail` is untranslated diagnostic text.
+
+Chunks are **16 KiB**, fixed, not negotiated — four times under the smallest real
+`maxMessageSize` (Safari's 256 KiB). The sender gates on `bufferedAmount` (high
+water 4 MiB, low water 1 MiB) and the receiver serialises its writes, so
+in-flight memory stays bounded regardless of file size.
+
+Received files land in `Downloads/FreeRemoteDesk/` on the host, written to a
+`.frd-part-*` file and renamed into place only after `fsync`, so an interrupted
+transfer never leaves something that looks complete but is truncated.
 
 ## Input event schema (DataChannel)
 

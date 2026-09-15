@@ -9,6 +9,26 @@ We assume:
 - The network is fully adversarial (Dolev-Yao) — every packet may be observed, dropped, or modified.
 - The user's paired devices are trusted. If your laptop is stolen and unlocked, an attacker has your remote desktop. We rely on OS-level device auth (passkey + biometric) for that boundary.
 
+**File transfer (added after the initial threat model).** A paired client can push
+files into `Downloads/FreeRemoteDesk/` on the host, and the host can push files to
+the client (which the browser saves as a normal download). This is **not a new
+privilege class** — a paired client already has full mouse and keyboard control of
+the host, so writing a file is strictly less than what it can already do. The
+measures that exist are about corrupting the host rather than about authorisation:
+
+| Measure | Why |
+|---|---|
+| Filename sanitised host-side | The name comes from the peer. Basename only (no path traversal), forbidden and Unicode bidi-override characters replaced, trailing dots/spaces trimmed, Windows reserved device names escaped, truncated on a char boundary. |
+| Writes confined to one directory | No caller-supplied path ever reaches the filesystem. |
+| No clobbering | Existing files are never overwritten; a ` (1)` suffix is appended. |
+| Declared size is a hard bound | A peer that sends more bytes than it declared is aborted, so it cannot fill the disk. |
+| `.part` + rename | An interrupted transfer cannot leave a file that looks complete but is truncated. |
+| Configurable ceiling | `max_transfer_bytes` (default 512 MiB). Rust enforces it; the client's own check is only for a fast error message. |
+
+The browser-side receive path holds the whole file in memory before the download
+starts (a browser cannot stream to disk without the File System Access API), which
+is why that direction has its own, lower ceiling.
+
 ## Guarantees
 
 | Property | How |

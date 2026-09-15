@@ -135,6 +135,33 @@ export const en = {
   "toolbar.showKeyboard": "Show keyboard",
   "toolbar.endSession": "End session",
 
+  // ---------- File transfer ----------
+  "file.button": "Files",
+  "file.title": "File transfer",
+  "file.action.send": "Send a file to the host",
+  "file.action.close": "Close",
+  "file.action.fullscreen": "Fullscreen",
+  "file.waiting": "Preparing the file channel…",
+  "file.unsupported":
+    "The host is running a build without file transfer, so this is unavailable.",
+  "file.empty": "No transfers yet.",
+  // The row already shows the filename, so these omit it.
+  "file.status.sending": "Sending — {done} / {total}",
+  "file.status.receiving": "Receiving — {done} / {total}",
+  "file.status.downloaded": "Downloaded",
+  "file.status.sent": "Sent",
+  "file.status.failed": "Failed — {reason}",
+  "file.hint.slow":
+    "Transfers share the connection with the screen; video may stutter while one runs.",
+  "file.reason.too_large": "the file is larger than the host's limit",
+  "file.reason.busy": "another transfer is already running",
+  "file.reason.io": "the host could not write the file",
+  "file.reason.cancelled": "the transfer was cancelled",
+  "file.reason.interrupted": "the connection dropped",
+  "file.reason.incomplete": "fewer bytes arrived than expected",
+  "file.reason.unsupported": "the host doesn't support file transfer",
+  "file.reason.protocol": "the file channel isn't ready",
+
   // ---------- Generated device names ----------
   "device.android": "Android device",
   "device.windows": "Windows PC",

@@ -11,7 +11,9 @@ import { SetupWizard } from "./SetupWizard";
 import { applyDocumentLang, getLang, setLang, t, useI18n } from "./i18n";
 import { LanguageSwitch } from "./i18n/LanguageSwitch";
 import { rich } from "./i18n/rich";
+import type { MessageKey } from "./i18n/en";
 import type { InputEvent } from "./protocol";
+import type { TransferDone, TransferProgress } from "./webrtc/files";
 import type { AgentConfig, TrustedClientSummary } from "./types";
 
 type UiState =
@@ -22,11 +24,59 @@ type UiState =
   | { kind: "incoming"; config: AgentConfig; trusted: TrustedClientSummary[]; clientId: string; clientName: string }
   | { kind: "error"; config: AgentConfig | null; message: string };
 
+/**
+ * File-transfer status for the window. Deliberately NOT part of `UiState` —
+ * threading it through the union would mean touching every place that builds a
+ * listening state, for a value that is purely presentational.
+ */
+type TransferStatus =
+  | { kind: "progress"; direction: "in" | "out"; name: string; done: number; total: number }
+  | { kind: "done"; direction: "in" | "out"; name: string; path?: string }
+  | { kind: "error"; reason: string };
+
+/**
+ * Wire reason codes → message keys. A map rather than a template string so a
+ * typo is a typecheck failure instead of a raw code shown to the user.
+ */
+const TRANSFER_REASON_KEY: Record<string, MessageKey> = {
+  too_large: "file.reason.too_large",
+  busy: "file.reason.busy",
+  io: "file.reason.io",
+  cancelled: "file.reason.cancelled",
+  interrupted: "file.reason.interrupted",
+  incomplete: "file.reason.incomplete",
+  unsupported: "file.reason.unsupported",
+  protocol: "file.reason.protocol",
+};
+
+function formatBytes(n: number): string {
+  if (n < 1024) return `${n} B`;
+  const units = ["KB", "MB", "GB", "TB"];
+  let v = n / 1024;
+  let i = 0;
+  while (v >= 1024 && i < units.length - 1) {
+    v /= 1024;
+    i += 1;
+  }
+  return `${v < 10 ? v.toFixed(1) : Math.round(v)} ${units[i]}`;
+}
+
 function App() {
   useI18n(); // re-render on language change
   const [state, setState] = useState<UiState>({ kind: "loading" });
+  const [transfer, setTransfer] = useState<TransferStatus | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const persistentPeerRef = useRef<HostPeer | null>(null);
   const pairPeerRef = useRef<HostPeer | null>(null);
+
+  /** The peer a file-transfer action should target: whichever is live. */
+  function activePeer(): HostPeer | null {
+    const pair = pairPeerRef.current;
+    if (pair?.filesReady()) return pair;
+    const persistent = persistentPeerRef.current;
+    if (persistent?.filesReady()) return persistent;
+    return pair ?? persistent;
+  }
   const hostName = t("agent.hostName");
 
   useEffect(() => {
@@ -126,12 +176,45 @@ function App() {
     }
   }
 
+  /**
+   * Shared file-transfer wiring. The window is usually hidden and only 480×640,
+   * so the OS notification is the primary UX here — the status line is for when
+   * someone happens to be looking at it.
+   */
+  function wireFileHandlers(peer: HostPeer) {
+    peer.onFiles({
+      onOpen: () => setTransfer(null),
+      onIncoming: (name, size) =>
+        setTransfer({ kind: "progress", direction: "in", name, done: 0, total: size }),
+      onProgress: (p: TransferProgress) =>
+        setTransfer({
+          kind: "progress",
+          direction: p.direction,
+          name: p.name,
+          done: p.done,
+          total: p.total,
+        }),
+      onDone: (d: TransferDone) => {
+        setTransfer({ kind: "done", direction: d.direction, name: d.name, path: d.path });
+        const body = t(
+          d.direction === "in" ? "file.notification.saved" : "file.notification.sent",
+          { name: d.name },
+        );
+        try {
+          sendNotification({ title: "FreeRemoteDesk", body });
+        } catch { /* notifications are best-effort */ }
+      },
+      onError: (reason: string) => setTransfer({ kind: "error", reason }),
+    });
+  }
+
   function wireHostPeerHandlers(
     peer: HostPeer,
     config: AgentConfig,
     trusted: TrustedClientSummary[],
   ): HostPeer {
     peer.on("onInput", onRemoteInput);
+    wireFileHandlers(peer);
 
     peer.on("onStateChange", (s) =>
       setState((prev) =>
@@ -285,6 +368,7 @@ function App() {
       await pair.connect();
 
       pair.on("onInput", onRemoteInput);
+      wireFileHandlers(pair);
       // Pair mode used to skip this, so `sessionState` stayed empty for the
       // whole pairing and the window showed no connection progress at all.
       pair.on("onStateChange", (s) =>
@@ -466,6 +550,75 @@ function App() {
             </div>
           )}
 
+          <input
+            ref={fileInputRef}
+            type="file"
+            style={{ display: "none" }}
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              // Clear first so picking the same file twice still fires onChange.
+              e.target.value = "";
+              if (!file) return;
+              const peer = activePeer();
+              if (!peer?.filesReady()) {
+                setTransfer({ kind: "error", reason: "protocol" });
+                return;
+              }
+              // onFiles.onError surfaces any failure; no need to double-report.
+              void peer.sendFile(file).catch(() => {});
+            }}
+          />
+          {(() => {
+            const canSend = Boolean(
+              pairPeerRef.current?.filesReady() || persistentPeerRef.current?.filesReady(),
+            );
+            return (
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={!canSend}
+                style={{ ...styles.linkBtn, ...(canSend ? null : styles.disabledBtn) }}
+              >
+                {t("file.action.send")}
+              </button>
+            );
+          })()}
+
+          {transfer && (
+            <div
+              style={{
+                ...styles.hint,
+                color: transfer.kind === "error" ? "#fca5a5" : undefined,
+              }}
+            >
+              {transfer.kind === "progress" &&
+                rich(
+                  t(
+                    transfer.direction === "in"
+                      ? "file.status.receiving"
+                      : "file.status.sending",
+                    {
+                      name: transfer.name,
+                      done: formatBytes(transfer.done),
+                      total: formatBytes(transfer.total),
+                    },
+                  ),
+                )}
+              {transfer.kind === "done" &&
+                rich(
+                  transfer.direction === "in"
+                    ? t("file.status.saved", {
+                        name: transfer.name,
+                        folder: transfer.path ?? "",
+                      })
+                    : t("file.status.sent", { name: transfer.name }),
+                )}
+              {transfer.kind === "error" &&
+                t("file.status.failed", {
+                  reason: t(TRANSFER_REASON_KEY[transfer.reason] ?? "file.reason.io"),
+                })}
+            </div>
+          )}
+
           <button onClick={() => stopEverything(state.config)} style={styles.linkBtn}>
             {t("agent.action.stopListening")}
           </button>
@@ -568,6 +721,10 @@ const styles: Record<string, React.CSSProperties> = {
   listRow: {
     display: "flex", justifyContent: "space-between", alignItems: "center",
     padding: "0.3rem 0",
+  },
+  disabledBtn: {
+    opacity: 0.45,
+    cursor: "not-allowed",
   },
   linkBtn: {
     background: "transparent", border: 0, color: "#888",
