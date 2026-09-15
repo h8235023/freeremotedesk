@@ -11,7 +11,9 @@ compatibility_date = "2025-01-01"
 #     wrangler login
 #     wrangler deploy
 #
-# That's it. No secrets, no D1, no rate limit binding required for MVP.
+# That's it. No secrets, no D1, and no rate-limit binding — the limiter is
+# plain in-memory state inside the Worker (see `src/index.ts`), so it needs
+# neither a binding here nor a migration on the Durable Object.
 # --------------------------------------------------------------------
 
 # Durable Object: one instance per pairing code / active session, relays
@@ -40,3 +42,9 @@ new_sqlite_classes = ["SessionRoom"]
 # Comma-separated. Leave unset to allow any origin (fine for personal use).
 [vars]
 ALLOWED_ORIGINS = ""
+# WebSocket upgrade limits, per minute. Guessing a pairing code costs one
+# upgrade per attempt, so this is what bounds it — and what stops someone
+# burning your free-tier request quota. Raise if you share an IP (office, VPN)
+# with legitimate clients; the defaults allow a fresh connection every 2s.
+MAX_WS_PER_MIN_PER_IP = "30"
+MAX_WS_PER_MIN = "600"

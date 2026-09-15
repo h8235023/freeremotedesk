@@ -71,23 +71,53 @@ is why that direction has its own, lower ceiling.
 
 ## Rate limiting
 
-> **⚠️ Not found in the code — kept for reference.**
-> None of the limits below are implemented in this repository. There is no
-> `env.RATE_LIMITER` binding in `signaling/wrangler.toml` (which states
-> "no rate limit binding required for MVP"), the Worker never reads the client
-> IP, and no TTL or one-shot consumption of a pairing code exists anywhere — a
-> room simply lives as long as its peers stay connected. The text is **left in
-> place rather than deleted** because these may describe behaviour provided by
-> the underlying platform (Cloudflare's edge / Durable Objects) rather than by
-> this code. They may also be aspirational. Treat them as unverified until
-> someone traces them to a concrete mechanism; see the fuller table in
-> [`PROTOCOL.md`](PROTOCOL.md#properties-previously-documented-here).
+### What is implemented
+
+WebSocket upgrades to `/ws/` are limited by a sliding-window counter held in
+module-scoped memory inside the Worker (`signaling/src/index.ts`), keyed on
+`CF-Connecting-IP`:
+
+| Limit | Default | Configurable via |
+|---|---|---|
+| Per IP | 30 / minute | `MAX_WS_PER_MIN_PER_IP` |
+| Global | 600 / minute | `MAX_WS_PER_MIN` |
+
+Over the limit returns `429` with `Retry-After`. Guessing a pairing code costs
+one upgrade per attempt, so this is the only place a limiter has anything to
+bite on.
+
+**It is deliberately not a Durable Object.** A per-IP DO would let an attacker
+with a large IP pool create unbounded DO instances on the account paying the
+bill — turning a request-quota problem into a worse one — and would force every
+existing deployment to apply a second migration. `MAX_TRACKED` (5000 keys) caps
+the map so the limiter can't itself be a memory-exhaustion vector.
+
+### What this honestly is not
+
+- **Not a security boundary.** Cloudflare runs many isolates per colo and across
+  colos, so a distributed attacker's effective budget is `limit × isolates`, and
+  the counters evaporate when an isolate recycles. It is a best-effort abuse
+  brake that bounds how fast someone can burn the owner's free-tier quota.
+- **Not what protects the pairing code.** At the default 16 characters over a
+  31-character alphabet the space is ~79 bits; online guessing is not a threat
+  at that size. The limiter matters at the *floor* (6 characters is ~30 bits),
+  which is the real reason `pairing.rs` documents a preference for the default.
+- **Not a substitute for expiry.** A leaked code stays valid for as long as its
+  room's peers stay connected — there is still no TTL and no one-shot
+  consumption (see [`PROTOCOL.md`](PROTOCOL.md#properties-previously-documented-here)).
+
+### Previously documented here, still not implemented
+
+These were claimed before this fork and remain absent from the code:
 
 - **Pairing code guesses**: 5 per IP per minute; global 1000 per minute (any IP)
-- **Session inits**: 60 per credential per hour (prevents runaway loops)
-- **WebSocket connections**: 20 concurrent per IP
-
-*(Claimed to be)* enforced at the CF Worker layer via `env.RATE_LIMITER` binding (Cloudflare Rate Limiting API).
+  — superseded by the limits above, which are real but best-effort.
+- **Session inits**: 60 per credential per hour (prevents runaway loops) — no
+  such accounting exists.
+- **WebSocket connections**: 20 concurrent per IP — only the rate is limited,
+  not the concurrency; the Durable Object caps a *room* at two peers.
+- An `env.RATE_LIMITER` binding (Cloudflare's Rate Limiting API) — not used; it
+  requires a paid plan, and the in-Worker limiter needs no binding at all.
 
 ## Dependencies audited before Phase 4
 

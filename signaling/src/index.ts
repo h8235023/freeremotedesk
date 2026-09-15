@@ -14,6 +14,10 @@ export interface Env {
   SESSION: DurableObjectNamespace;
   /** Optional comma-separated origin allow-list. Empty = any origin. */
   ALLOWED_ORIGINS?: string;
+  /** WebSocket upgrades allowed per IP per minute. Default 30. */
+  MAX_WS_PER_MIN_PER_IP?: string;
+  /** WebSocket upgrades allowed across all IPs per minute. Default 600. */
+  MAX_WS_PER_MIN?: string;
 }
 
 export default {
@@ -34,6 +38,14 @@ export default {
     if (url.pathname.startsWith("/ws/")) {
       const roomKey = url.pathname.slice("/ws/".length);
       if (!roomKey || roomKey.length > 128) return json({ error: "bad room" }, 400);
+
+      // Guessing a pairing code means opening a WebSocket per attempt, so this
+      // is the one place a limiter has anything to bite on.
+      const verdict = checkRateLimit(req, env);
+      if (!verdict.ok) {
+        return json({ error: "rate limited" }, 429, { "retry-after": String(verdict.retryAfter) });
+      }
+
       const id = env.SESSION.idFromName(roomKey);
       const stub = env.SESSION.get(id);
       return stub.fetch(req);
@@ -43,10 +55,86 @@ export default {
   },
 };
 
-function json(body: unknown, status = 200): Response {
+// ---------- Rate limiting ----------
+
+/**
+ * Sliding-window counters, module-scoped so they survive between requests in one
+ * isolate and reset when it recycles.
+ *
+ * This is deliberately **not** a Durable Object. A per-IP DO would let an
+ * attacker with a large IP pool create unbounded DO instances on the account
+ * paying the bill — turning a request-quota problem into a worse one — and it
+ * would force every existing deployment to apply a second migration. For a
+ * personal instance this is the right trade.
+ *
+ * The honest limitation: Cloudflare runs many isolates per colo and across
+ * colos, so a distributed attacker's real budget is `limit × isolates`, and
+ * counters evaporate on recycle. This is a best-effort abuse brake that bounds
+ * how fast someone can burn the owner's free-tier quota. It is not a security
+ * boundary, and at the default 16-character code the search space is far too
+ * large for guessing to matter anyway.
+ */
+const WINDOW_MS = 60_000;
+
+/** Cap on tracked keys, so the limiter can't itself be a memory-exhaustion vector. */
+const MAX_TRACKED = 5_000;
+
+type Bucket = { count: number; resetAt: number };
+const buckets = new Map<string, Bucket>();
+
+function parseLimit(raw: string | undefined, fallback: number): number {
+  const n = Number.parseInt(raw ?? "", 10);
+  return Number.isFinite(n) && n > 0 ? n : fallback;
+}
+
+function bump(key: string, limit: number, now: number): boolean {
+  let bucket = buckets.get(key);
+  if (!bucket || bucket.resetAt <= now) {
+    bucket = { count: 0, resetAt: now + WINDOW_MS };
+    buckets.set(key, bucket);
+  }
+  bucket.count += 1;
+
+  if (buckets.size > MAX_TRACKED) {
+    for (const [k, b] of buckets) {
+      if (b.resetAt <= now) buckets.delete(k);
+    }
+    // Still over budget after sweeping expired entries: drop oldest-inserted.
+    // Map preserves insertion order, so this discards the coldest keys.
+    while (buckets.size > MAX_TRACKED) {
+      const oldest = buckets.keys().next().value;
+      if (oldest === undefined) break;
+      buckets.delete(oldest);
+    }
+  }
+
+  return bucket.count <= limit;
+}
+
+function checkRateLimit(
+  req: Request,
+  env: Env,
+  now = Date.now(),
+): { ok: true } | { ok: false; retryAfter: number } {
+  const perIp = parseLimit(env.MAX_WS_PER_MIN_PER_IP, 30);
+  const global = parseLimit(env.MAX_WS_PER_MIN, 600);
+
+  // Cloudflare sets CF-Connecting-IP at the edge and strips anything a client
+  // sends. It is absent under `wrangler dev`, hence the shared "local" bucket —
+  // keeping the code path identical between dev and prod rather than skipping
+  // the check, so CI exercises the real logic. (The smoke test opens 2 sockets
+  // back-to-back; both limits are far above that.)
+  const ip = req.headers.get("CF-Connecting-IP") ?? "local";
+
+  if (!bump(`ip:${ip}`, perIp, now)) return { ok: false, retryAfter: WINDOW_MS / 1000 };
+  if (!bump("global", global, now)) return { ok: false, retryAfter: WINDOW_MS / 1000 };
+  return { ok: true };
+}
+
+function json(body: unknown, status = 200, extra: Record<string, string> = {}): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", ...extra },
   });
 }
 

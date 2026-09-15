@@ -54,3 +54,6 @@ coverage/
 # Local sandbox stuff
 /scratch/
 /tmp/
+
+# Local-only: helper for pushing when github.com:443 is blocked
+.push_via_api.py

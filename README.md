@@ -14,6 +14,10 @@ Reach your home dev machine from any browser. Zero servers you run. Zero monthly
 > owner of the original project, and neither this fork's owner nor the original project's
 > owner provides any guarantee of availability.**
 >
+> **This fork was modified entirely using AI. Model: `deepseek-v4.1-flash`. Please note
+> that its security is not guaranteed either (although the main security-related code has
+> not been modified).**
+>
 > **Most people should use the original project, not this fork** — it is the version its
 > author supports, and its instructions are the maintained ones:
 > <https://github.com/Teylersf/freeremotedesk/blob/main/AGENTS.md>

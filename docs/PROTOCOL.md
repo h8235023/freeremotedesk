@@ -57,7 +57,7 @@ mechanism.
 
 | Claim | What's actually in the code |
 |---|---|
-| "~30 bits of entropy — enough to resist online brute force (server rate-limits to 5 attempts/min per IP)" | No rate-limiting logic exists in `signaling/src/index.ts`. The Worker never reads the client IP; the Durable Object only relays bytes. |
+| "~30 bits of entropy — enough to resist online brute force (server rate-limits to 5 attempts/min per IP)" | **Partly superseded.** A limiter now exists on `/ws/`, but at different numbers and only best-effort: 30/min per IP and 600/min global, held in per-isolate memory (`signaling/src/index.ts`). It is not what makes a short code safe — the default 16 characters (~79 bits) is. See [Rate limiting](SECURITY.md#rate-limiting). |
 | "Valid for 60 seconds after generation" | No TTL is set or enforced anywhere. The room lives as long as its peers stay connected. |
 | "One-shot: consumed the moment a client claims it" | Nothing is consumed or invalidated. A third peer is refused only because the room caps at two connections — not because the code was retired. |
 
