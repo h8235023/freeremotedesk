@@ -94,7 +94,8 @@ export const en = {
     "A modified fork of [Teylersf/freeremotedesk]({upstream}). Its owner has no affiliation with the original project's owner, and neither party guarantees availability.",
   "about.ai":
     "This fork was modified entirely using AI (deepseek-v4.1-flash). Its security is not guaranteed either, although the main security-related code is unmodified.",
-  "about.license": "The original project is released under Apache-2.0.",
+  "about.license":
+    "Licence: **not yet finalised.** Upstream lists Apache-2.0 as pending (MIT is also under consideration) and ships no LICENSE file, so no licence has actually been granted for this code.",
   "about.upstream": "Original project",
   "about.thisFork": "This fork",
   "about.show": "About this build",

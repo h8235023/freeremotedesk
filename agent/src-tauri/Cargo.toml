@@ -1,6 +1,6 @@
 [package]
 name = "freeremotedesk-agent"
-version = "0.3.5"
+version = "0.3.6"
 description = "FreeRemoteDesk host agent"
 authors = ["FreeRemoteDesk contributors"]
 edition = "2021"

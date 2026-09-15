@@ -95,7 +95,8 @@ export const zhCN: Record<MessageKey, string> = {
     "本程序是 [Teylersf/freeremotedesk]({upstream}) 的修改版分支。本分支所有者与原项目所有者没有任何附属关系，双方均不对可用性做任何保障。",
   "about.ai":
     "本分支完全使用 AI（deepseek-v4.1-flash）修改，安全性同样不作保障（尽管未对具有安全性部分的主要代码有修改）。",
-  "about.license": "原项目以 Apache-2.0 许可发布。",
+  "about.license":
+    "许可：**尚未最终确定。** 原项目把 Apache-2.0 标为待定（也在考虑 MIT），且仓库中没有 LICENSE 文件 —— 也就是说这份代码目前并未实际授予任何许可。",
   "about.upstream": "原项目",
   "about.thisFork": "本分支",
   "about.show": "关于此版本",
