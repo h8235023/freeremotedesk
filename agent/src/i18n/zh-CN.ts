@@ -96,7 +96,7 @@ export const zhCN: Record<MessageKey, string> = {
   "about.ai":
     "本分支完全使用 AI（deepseek-v4.1-flash）修改，安全性同样不作保障（尽管未对具有安全性部分的主要代码有修改）。",
   "about.license":
-    "许可：**尚未最终确定。** 原项目把 Apache-2.0 标为待定（也在考虑 MIT），且仓库中没有 LICENSE 文件 —— 也就是说这份代码目前并未实际授予任何许可。",
+    "许可：**并未授予，且上游描述不清。** 原项目没有 LICENSE 文件、未声明 `license` 字段，只把 Apache-2.0 标为「待定」。没有许可即默认保留所有权利 —— 本分支继承这一状态，也无法授予自己并不持有的权利。",
   "about.upstream": "原项目",
   "about.thisFork": "本分支",
   "about.show": "关于此版本",

@@ -95,7 +95,7 @@ export const en = {
   "about.ai":
     "This fork was modified entirely using AI (deepseek-v4.1-flash). Its security is not guaranteed either, although the main security-related code is unmodified.",
   "about.license":
-    "Licence: **not yet finalised.** Upstream lists Apache-2.0 as pending (MIT is also under consideration) and ships no LICENSE file, so no licence has actually been granted for this code.",
+    "Licence: **not granted, and unclear upstream.** The original project ships no LICENSE file, declares no `license` field, and describes Apache-2.0 as \"pending\". Without a licence the default is all rights reserved — this fork inherits that and cannot grant rights it does not hold.",
   "about.upstream": "Original project",
   "about.thisFork": "This fork",
   "about.show": "About this build",

@@ -60,7 +60,9 @@ export const en = {
   "landing.trust.body":
     "Pair your phone or laptop once with a one-off code. From then on it shows up in your paired-hosts list — one tap to reconnect, no code needed. Credentials never leave the two devices; the signaling server can't impersonate you.",
 
-  "landing.footer.note": "Open source (Apache-2.0 pending) — ",
+  // Not "open source": with no LICENSE file and no `license` field upstream, no
+  // licence has actually been granted, so that label would overstate it.
+  "landing.footer.note": "Source-available; upstream licence unresolved — ",
   "landing.footer.client": "Open client",
   "landing.footer.download": "Download agent",
   "landing.footer.agents": "For AI agents",
@@ -179,7 +181,7 @@ export const en = {
   "about.ai":
     "This fork was modified entirely using AI (deepseek-v4.1-flash). Its security is not guaranteed either, although the main security-related code is unmodified.",
   "about.license":
-    "Licence: **not yet finalised.** Upstream lists Apache-2.0 as pending (MIT is also under consideration) and ships no LICENSE file, so no licence has actually been granted for this code.",
+    "Licence: **not granted, and unclear upstream.** The original project ships no LICENSE file, declares no `license` field, and describes Apache-2.0 as \"pending\". Without a licence the default is all rights reserved — this fork inherits that and cannot grant rights it does not hold.",
   "about.upstream": "Original project",
   "about.thisFork": "This fork",
 

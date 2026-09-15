@@ -140,4 +140,24 @@ Full design + rationale: [`ARCHITECTURE.md`](ARCHITECTURE.md).
 
 ## License
 
-Apache-2.0 (pending — will be locked in before v0.2.0).
+> **⚠️ The upstream project's licensing is unclear. Read this before you deploy,
+> redistribute, or rely on anything here.**
+
+**Upstream has not granted a licence for this code.** Concretely, in the repositories
+as they stand:
+
+- there is **no `LICENSE` file** — not upstream, not here
+- **no `license` field** is declared in `agent/src-tauri/Cargo.toml` or in any
+  `package.json`
+- upstream's own README says *"Apache-2.0 (pending — will be locked in before v0.2.0)"*
+  — a target that has not been met
+- `docs/SECURITY.md` lists Apache-2.0 only as a **recommendation**, to be decided before
+  public release, and notes MIT as an alternative
+
+Without a licence the default is **all rights reserved**: no permission to use, modify,
+or redistribute has actually been granted — not to this fork, and not to anyone else.
+
+This fork neither resolves nor claims to resolve that; it inherits the ambiguity, and its
+owner cannot grant rights they do not hold. The above describes the files in these
+repositories rather than giving legal advice — if it matters to you, ask the upstream
+author, or a lawyer, before relying on any licence here.
