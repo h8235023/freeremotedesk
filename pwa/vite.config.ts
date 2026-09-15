@@ -1,8 +1,15 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { VitePWA } from "vite-plugin-pwa";
+import pkg from "./package.json";
 
 export default defineConfig({
+  // The PWA has no runtime version API like Tauri's `getVersion()`, so its
+  // version is baked in at build time. Keep `package.json`'s version in step
+  // with `agent/src-tauri/Cargo.toml` — they ship together as one release.
+  define: {
+    __APP_VERSION__: JSON.stringify(pkg.version),
+  },
   plugins: [
     react(),
     VitePWA({

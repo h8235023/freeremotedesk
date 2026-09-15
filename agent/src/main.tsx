@@ -1,6 +1,7 @@
 import { StrictMode, useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { invoke } from "@tauri-apps/api/core";
+import { getVersion } from "@tauri-apps/api/app";
 import {
   isPermissionGranted,
   requestPermission,
@@ -635,7 +636,60 @@ function App() {
           invoke("set_language", { language: next }).catch(() => {});
         }}
       />
+
+      <AboutBlock />
     </Layout>
+  );
+}
+
+const UPSTREAM_URL = "https://github.com/Teylersf/freeremotedesk";
+const FORK_URL = "https://github.com/h8235023/freeremotedesk";
+
+/**
+ * Version + attribution.
+ *
+ * The version comes from `getVersion()`, which reads the running bundle rather
+ * than anything baked into the UI — so it always reports what is actually
+ * installed, even when the app was updated without this file being touched.
+ */
+function AboutBlock() {
+  useI18n();
+  const [version, setVersion] = useState<string | null>(null);
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    getVersion()
+      .then(setVersion)
+      .catch(() => setVersion(null));
+  }, []);
+
+  return (
+    <div style={styles.about}>
+      <button style={styles.linkBtn} onClick={() => setOpen((v) => !v)}>
+        {t("about.show")}
+      </button>
+
+      {open && (
+        <div style={styles.aboutBody}>
+          <div style={styles.aboutVersion}>
+            {version
+              ? t("about.version", { version })
+              : t("about.versionUnknown")}
+          </div>
+          <div>{rich(t("about.fork", { upstream: UPSTREAM_URL }))}</div>
+          <div>{t("about.ai")}</div>
+          <div>{t("about.license")}</div>
+          <div style={styles.aboutLinks}>
+            <a href={UPSTREAM_URL} target="_blank" rel="noreferrer" style={styles.aboutLink}>
+              {t("about.upstream")}
+            </a>
+            <a href={FORK_URL} target="_blank" rel="noreferrer" style={styles.aboutLink}>
+              {t("about.thisFork")}
+            </a>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -722,6 +776,31 @@ const styles: Record<string, React.CSSProperties> = {
     display: "flex", justifyContent: "space-between", alignItems: "center",
     padding: "0.3rem 0",
   },
+  about: {
+    marginTop: "0.75rem",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    gap: "0.4rem",
+    maxWidth: "100%",
+  },
+  aboutBody: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "0.45rem",
+    fontSize: "0.72rem",
+    lineHeight: 1.5,
+    opacity: 0.65,
+    textAlign: "center",
+    borderTop: "1px solid #2a2a2a",
+    paddingTop: "0.6rem",
+  },
+  aboutVersion: {
+    fontFamily: "ui-monospace, monospace",
+    opacity: 0.9,
+  },
+  aboutLinks: { display: "flex", gap: "0.9rem", justifyContent: "center" },
+  aboutLink: { color: "#4ade80", textDecoration: "none" },
   disabledBtn: {
     opacity: 0.45,
     cursor: "not-allowed",

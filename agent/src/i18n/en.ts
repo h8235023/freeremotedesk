@@ -86,6 +86,19 @@ export const en = {
   "file.notification.saved": "{name} received",
   "file.notification.sent": "{name} sent",
 
+  // ---------- About ----------
+  "about.title": "About",
+  "about.version": "Agent version {version}",
+  "about.versionUnknown": "Version unknown",
+  "about.fork":
+    "A modified fork of [Teylersf/freeremotedesk]({upstream}). Its owner has no affiliation with the original project's owner, and neither party guarantees availability.",
+  "about.ai":
+    "This fork was modified entirely using AI (deepseek-v4.1-flash). Its security is not guaranteed either, although the main security-related code is unmodified.",
+  "about.license": "The original project is released under Apache-2.0.",
+  "about.upstream": "Original project",
+  "about.thisFork": "This fork",
+  "about.show": "About this build",
+
   // ---------- Language switch ----------
   "lang.label": "Language",
 } as const;

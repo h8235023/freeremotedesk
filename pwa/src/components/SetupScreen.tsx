@@ -2,6 +2,7 @@ import { useState } from "react";
 import { setSignalingUrl, toHttpUrl } from "../config";
 import { t, useI18n } from "../i18n";
 import { LanguageSwitch } from "../i18n/LanguageSwitch";
+import { About } from "./About";
 
 type Props = { onSaved: (url: string) => void };
 
@@ -72,6 +73,7 @@ export function SetupScreen({ onSaved }: Props) {
       </div>
 
       <LanguageSwitch style={{ justifyContent: "center" }} />
+      <About />
     </form>
   );
 }

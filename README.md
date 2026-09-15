@@ -27,7 +27,7 @@ Reach your home dev machine from any browser. Zero servers you run. Zero monthly
 > **What this fork changes over upstream:**
 > - **Pairing code length is configurable** (6–128, default 16) instead of a fixed 6, and
 >   the PWA no longer assumes any particular length. A fresh code is still minted per
->   pairing. This was done with AI assistance (Claude Code).
+>   pairing.
 > - **Bilingual UI and docs** — Simplified Chinese by default, English available at runtime.
 > - **Deployable to a custom domain** instead of `vercel.app` / `workers.dev`, for networks
 >   where those are unreachable. See

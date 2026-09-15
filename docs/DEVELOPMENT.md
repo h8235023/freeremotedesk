@@ -111,6 +111,21 @@ cd agent; pnpm tauri:build
 - **Wrangler prompts for browser login** — expected on first `wrangler login`. Approves a token stored in `~/.wrangler`.
 - **PWA WebRTC fails in localhost without HTTPS** — Chrome allows `localhost` as secure context, so this works. For LAN testing across devices, you need HTTPS on the PWA — use `vite --https` or Cloudflare Tunnel for a quick public URL.
 
+## Releasing — bump the version in three places
+
+The agent and the PWA are separate artifacts, each reporting its own version to
+the user, so a release has to move all three of these together:
+
+| File | Read by |
+|---|---|
+| `agent/src-tauri/Cargo.toml` | the crate version |
+| `agent/src-tauri/tauri.conf.json` | what Tauri's `getVersion()` reports at runtime, and the installer filename |
+| `pwa/package.json` | baked into the PWA at build time as `__APP_VERSION__` |
+
+Miss the third and the PWA keeps advertising the previous release while the
+agent reports the new one — the About panel is the one place a user can see
+both, so it is exactly where the mismatch would show up.
+
 ## Verify the scaffold before installs
 
 You can inspect the whole shape now with any editor. Nothing has been run.

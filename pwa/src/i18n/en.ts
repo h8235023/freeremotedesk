@@ -168,6 +168,20 @@ export const en = {
   "device.linux": "Linux device",
   "device.browser": "Browser",
 
+  // ---------- About ----------
+  "landing.footer.repo": "Fork repo",
+
+  "about.title": "About",
+  "about.show": "About this build",
+  "about.version": "PWA version {version}",
+  "about.fork":
+    "A modified fork of [Teylersf/freeremotedesk]({upstream}). Its owner has no affiliation with the original project's owner, and neither party guarantees availability.",
+  "about.ai":
+    "This fork was modified entirely using AI (deepseek-v4.1-flash). Its security is not guaranteed either, although the main security-related code is unmodified.",
+  "about.license": "The original project is released under Apache-2.0.",
+  "about.upstream": "Original project",
+  "about.thisFork": "This fork",
+
   // ---------- Language switch ----------
   "lang.label": "Language",
 } as const;

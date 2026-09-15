@@ -165,6 +165,20 @@ export const zhCN: Record<MessageKey, string> = {
   "device.linux": "Linux 设备",
   "device.browser": "浏览器",
 
+  // ---------- 关于 ----------
+  "landing.footer.repo": "本分支仓库",
+
+  "about.title": "关于",
+  "about.show": "关于此版本",
+  "about.version": "PWA 版本 {version}",
+  "about.fork":
+    "本程序是 [Teylersf/freeremotedesk]({upstream}) 的修改版分支。本分支所有者与原项目所有者没有任何附属关系，双方均不对可用性做任何保障。",
+  "about.ai":
+    "本分支完全使用 AI（deepseek-v4.1-flash）修改，安全性同样不作保障（尽管未对具有安全性部分的主要代码有修改）。",
+  "about.license": "原项目以 Apache-2.0 许可发布。",
+  "about.upstream": "原项目",
+  "about.thisFork": "本分支",
+
   // ---------- 语言切换 ----------
   "lang.label": "语言",
 };

@@ -6,6 +6,10 @@
  */
 
 import { LanguageSwitch } from "../i18n/LanguageSwitch";
+import { About } from "../components/About";
+
+const FORK_URL = "https://github.com/h8235023/freeremotedesk";
+const UPSTREAM_URL = "https://github.com/Teylersf/freeremotedesk";
 import { useI18n } from "../i18n";
 import { rich } from "../i18n/rich";
 
@@ -97,23 +101,24 @@ export function Landing() {
       <footer style={styles.footer}>
         <div>
           {t("landing.footer.note")}
-          <a href="https://github.com/Teylersf/freeremotedesk" style={styles.link}>
-            github.com/Teylersf/freeremotedesk
+          <a href={FORK_URL} style={styles.link}>
+            {t("landing.footer.repo")}
           </a>
         </div>
         <div style={styles.footerLinks}>
           <LanguageSwitch />
           <a href="/connect" style={styles.link}>{t("landing.footer.client")}</a>
-          <a href="https://github.com/Teylersf/freeremotedesk/releases/latest" style={styles.link}>
+          <a href={`${FORK_URL}/releases/latest`} style={styles.link}>
             {t("landing.footer.download")}
           </a>
-          <a
-            href="https://github.com/Teylersf/freeremotedesk/blob/main/AGENTS.md"
-            style={styles.link}
-          >
+          <a href={`${FORK_URL}/blob/main/AGENTS.md`} style={styles.link}>
             {t("landing.footer.agents")}
           </a>
+          <a href={UPSTREAM_URL} style={styles.link}>
+            {t("about.upstream")}
+          </a>
         </div>
+        <About />
       </footer>
     </main>
   );
